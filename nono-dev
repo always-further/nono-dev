@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+"""Convenience shim to run nono-dev without installing."""
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from nono_dev.cli import main
+
+main()
