@@ -2,7 +2,7 @@
 name = "nono-dev"
 version = "0.1.0"
 description = "Development environment manager for the nono project"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
@@ -10,6 +10,9 @@ nono-dev = "nono_dev.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["nono_dev*"]
+
+[tool.setuptools.package-data]
+"nono_dev" = ["prompts/*.md"]
 
 [build-system]
 requires = ["setuptools>=64"]

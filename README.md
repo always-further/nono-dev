@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/nono-dev-mascot.png" alt="nono-dev" width="600" />
+</div>
+
 # nono-dev
 
 Development environment manager for the nono project. Creates consistent [OrbStack](https://orbstack.dev/) Linux VMs with Rust build dependencies so every developer on the team gets an identical build environment in seconds.

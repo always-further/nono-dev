@@ -1,0 +1,21 @@
+# nono-dev configuration
+# Copy this file to nono-dev.toml in your project root and adjust the values.
+
+[project]
+# repo = "org/repo"  # GitHub org/repo (auto-detected from git remote origin)
+
+[worktree]
+dir = ".worktrees"  # directory for git worktrees (default: ".worktrees")
+
+[rollback]
+enabled = true                     # enable nono rollback snapshots (default: true)
+# dest = "~/.nono/rollbacks"      # rollback destination (default: ~/.nono/rollbacks/)
+# exclude = [".git", "node_modules"]  # patterns to exclude from snapshots
+
+[prompts]
+# Override default system prompts with project-specific ones (optional).
+# Paths are relative to this config file.
+# triage = "prompts/triage.md"
+# fix = "prompts/fix.md"
+# review = "prompts/review.md"
+# feature = "prompts/feature.md"
