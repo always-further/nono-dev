@@ -7,21 +7,23 @@ OrbStack is a lightweight alternative to Docker Desktop and Linux VMs on macOS. 
 ## Prerequisites
 
 - macOS with [OrbStack](https://orbstack.dev/) installed
-- Python 3.9+
-- Rust/Cargo installed on the host (for building on macOS; the VM gets its own Rust toolchain)
+- Python 3.9+ with [uv](https://docs.astral.sh/uv/) or pip
 
 ## Quick Start
 
 ```bash
 # Clone the repo
-git clone <repo-url>
+git clone https://github.com/always-further/nono-dev.git
 cd nono-dev
 
-# Create your VM (no install step needed)
-./nono-dev create
+# Install
+uv sync
+
+# Create your VM
+nono-dev create
 
 # Connect to the VM
-./nono-dev connect
+nono-dev connect --mount /Users/yourname/path/to/nono # (optional, defaults to current directory)
 ```
 
 This creates a Debian VM named `nono-dev` with:
@@ -195,3 +197,17 @@ nono-dev destroy --name nono-dev
 # Skip the confirmation prompt
 nono-dev destroy --force
 ```
+
+
+# Roadmap
+
+- [x] Basic VM creation with Rust and build tools
+- [x] Project directory mounting
+- [x] SSH agent forwarding
+- [x] CLI tool with create/connect/destroy commands
+- [x] Custom OS selection (Debian/Ubuntu)
+- [x] Custom package installation
+- [x] VM status listing
+- [x] Recreate command for easy teardown/setup
+- [ ] Container support (e.g. for testing in multiple distros)
+- [ ] Git workspace integration and nono sandboxing (start claude in nono with a git work tree).
