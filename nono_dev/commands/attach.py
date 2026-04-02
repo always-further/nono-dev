@@ -11,9 +11,18 @@ def add_parser(subparsers):
     )
     parser.add_argument(
         "target",
-        help="Session ID, or issue/PR number to look up",
+        help="Session ID, issue/PR number, or session name (e.g. fix-563)",
     )
     parser.set_defaults(func=run)
+
+
+def _print_sessions(sessions):
+    """Print a list of sessions for the user to pick from."""
+    for s in sessions:
+        sid = s.get("session_id", "?")[:6]
+        name = s.get("name", "?")
+        status = s.get("status", "?")
+        print(f"  {sid}  {name:<25} {status}")
 
 
 def run(args):
@@ -26,49 +35,45 @@ def run(args):
         print("No active nono sessions found.")
         sys.exit(1)
 
+    # Try matching by session name first (e.g. fix-563, review-530)
+    by_name = [s for s in sessions if s.get("name") == target]
+    if len(by_name) == 1:
+        nono.attach(by_name[0]["session_id"])
+
     # If target is numeric, search by issue/PR number in session names
     if target.isdigit():
         matches = [
             s for s in sessions
-            if target in (s.get("name", "").split("-")[-1:])
+            if s.get("name", "").endswith(f"-{target}")
         ]
         if len(matches) == 1:
-            session_id = matches[0].get("session_id", matches[0].get("name"))
-            nono.attach(session_id)
+            nono.attach(matches[0]["session_id"])
         elif len(matches) > 1:
             print(f"Multiple sessions match '#{target}':")
-            for s in matches:
-                print(f"  {s.get('session_id', '?')[:6]}  {s.get('name', '?')}")
-            print("\nSpecify the session ID directly.")
-            sys.exit(1)
-        else:
-            print(f"No active session found for '#{target}'.")
-            print("\nActive sessions:")
-            for s in sessions:
-                print(f"  {s.get('session_id', '?')[:6]}  {s.get('name', '?')}")
-            sys.exit(1)
-    else:
-        # Treat as a session ID - try direct match first, then prefix match
-        exact = [s for s in sessions if s.get("session_id") == target]
-        if exact:
-            nono.attach(target)
-
-        prefix = [
-            s for s in sessions
-            if s.get("session_id", "").startswith(target)
-        ]
-        if len(prefix) == 1:
-            nono.attach(prefix[0]["session"])
-        elif len(prefix) > 1:
-            print(f"Ambiguous session prefix '{target}':")
-            for s in prefix:
-                print(f"  {s.get('session_id', '?')[:6]}  {s.get('name', '?')}")
+            _print_sessions(matches)
+            print("\nUse the session name (e.g. fix-{0}) or ID.".format(target))
             sys.exit(1)
 
-        # Try as a session name
-        by_name = [s for s in sessions if s.get("name") == target]
-        if by_name:
-            nono.attach(by_name[0].get("session_id", target))
+    # Try as a session ID -- exact match
+    exact = [s for s in sessions if s.get("session_id") == target]
+    if exact:
+        nono.attach(target)
 
-        print(f"No session found matching '{target}'.")
+    # Try as a session ID prefix
+    prefix = [
+        s for s in sessions
+        if s.get("session_id", "").startswith(target)
+    ]
+    if len(prefix) == 1:
+        nono.attach(prefix[0]["session_id"])
+    elif len(prefix) > 1:
+        print(f"Ambiguous session prefix '{target}':")
+        _print_sessions(prefix)
         sys.exit(1)
+
+    # Nothing matched
+    print(f"No active session found matching '{target}'.")
+    if sessions:
+        print("\nActive sessions:")
+        _print_sessions(sessions)
+    sys.exit(1)

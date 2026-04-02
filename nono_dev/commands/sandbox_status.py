@@ -47,22 +47,53 @@ def _find_worktree(branch, all_worktrees):
     return None
 
 
-def _relative_path(path, project_root):
-    """Return a path relative to the project root."""
+def _relative_path(path, base):
+    """Return a path relative to base, or the original if not under base."""
     try:
-        return os.path.relpath(path, project_root)
+        rel = os.path.relpath(path, base)
+        if rel.startswith(".."):
+            return path
+        return rel
     except ValueError:
         return path
+
+
+def _collect_worktrees(sessions, config):
+    """Collect worktrees from all repos referenced by sessions and config."""
+    all_wts = []
+    seen_roots = set()
+
+    # Worktrees from the config's project root
+    project_root = config["_config_dir"]
+    wts = worktree.list_worktrees(cwd=project_root)
+    all_wts.extend(wts)
+    # Find the git root for dedup
+    for wt in wts:
+        if wt.get("branch") in ("main", "master"):
+            seen_roots.add(wt.get("path"))
+
+    # Worktrees from session workdirs (may be different repos)
+    for s in sessions:
+        workdir = s.get("workdir", "")
+        if not workdir or workdir in seen_roots:
+            continue
+        seen_roots.add(workdir)
+        wts = worktree.list_worktrees(cwd=workdir)
+        for wt in wts:
+            # Avoid duplicates by path
+            if not any(existing.get("path") == wt.get("path") for existing in all_wts):
+                all_wts.append(wt)
+
+    return all_wts
 
 
 def run(_args):
     nono.check_installed()
     config = project_config.load()
     wt_dir = project_config.get_worktree_dir(config)
-    project_root = config["_config_dir"]
 
     sessions = nono.ps_json(include_all=False)
-    all_worktrees = worktree.list_worktrees(cwd=project_root)
+    all_worktrees = _collect_worktrees(sessions, config)
 
     # Managed worktrees under the configured dir
     abs_wt_dir = os.path.abspath(wt_dir)
@@ -77,7 +108,7 @@ def run(_args):
 
     # Header
     print(
-        f"{'WORKTREE':<30} {'TYPE':<10} {'ISSUE/PR':<12} "
+        f"{'NAME':<25} {'PATH':<35} {'TYPE':<10} {'ISSUE/PR':<12} "
         f"{'SESSION':<10} {'STATUS':<12} {'CHANGES'}"
     )
 
@@ -90,12 +121,14 @@ def run(_args):
         session_type, ref, expected_branch = _parse_session_name(name)
         session_id = s.get("session_id", "-")[:6]
         status = s.get("status", "?")
+        workdir = s.get("workdir", "")
 
-        # Find worktree by expected branch name derived from session name
+        # Find worktree by expected branch name
         wt = _find_worktree(expected_branch, all_worktrees)
 
         if wt:
-            wt_display = _relative_path(wt["path"], project_root)
+            wt_name = wt.get("branch", os.path.basename(wt["path"]))
+            wt_path = _relative_path(wt["path"], workdir or config["_config_dir"])
             shown_branches.add(wt.get("branch"))
             if os.path.isdir(wt["path"]):
                 adds, dels = worktree.diff_stat(wt["path"])
@@ -103,11 +136,12 @@ def run(_args):
             else:
                 changes = "?"
         else:
-            wt_display = "-"
+            wt_name = name
+            wt_path = "-"
             changes = "-"
 
         print(
-            f"{wt_display:<30} {session_type:<10} {ref:<12} "
+            f"{wt_name:<25} {wt_path:<35} {session_type:<10} {ref:<12} "
             f"{session_id:<10} {status:<12} {changes}"
         )
 
@@ -117,7 +151,7 @@ def run(_args):
         if branch in shown_branches:
             continue
 
-        wt_display = _relative_path(wt["path"], project_root)
+        wt_path = _relative_path(wt["path"], config["_config_dir"])
 
         m = re.match(r"^issue-(\d+)$", branch)
         if m:
@@ -132,6 +166,6 @@ def run(_args):
             changes = "?"
 
         print(
-            f"{wt_display:<30} {wt_type:<10} {ref:<12} "
+            f"{branch:<25} {wt_path:<35} {wt_type:<10} {ref:<12} "
             f"{'-':<10} {'no session':<12} {changes}"
         )

@@ -67,7 +67,7 @@ def run_detached(
         cmd.extend(["--workdir", workdir])
 
     cmd.append("--")
-    cmd.append("claude")
+    cmd.extend(["claude", "--dangerously-skip-permissions"])
 
     if system_prompt:
         with open(system_prompt) as f:

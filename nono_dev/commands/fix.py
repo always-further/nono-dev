@@ -47,11 +47,13 @@ def run(args):
 
     # Grant read access to the main repo so Claude's Read/Edit tools
     # can follow symlinks from the worktree back to the canonical paths.
+    # Grant write access to .git/worktrees/ for git index lock files.
     repo_root = os.getcwd()
+    git_worktrees_dir = os.path.join(repo_root, ".git", "worktrees")
 
     session_id = nono.run_detached(
         session_name,
-        allows=[abs_path],
+        allows=[abs_path, git_worktrees_dir],
         reads=[repo_root],
         allow_cwd=True,
         system_prompt=prompt_path,

@@ -38,10 +38,15 @@ def run(args):
     ]
 
     if args.name:
+        name = args.name.rstrip("/")
+        # Match by branch name, directory basename, or relative path
+        abs_name = os.path.abspath(os.path.join(project_root, name))
         targets = [
             wt for wt in managed
-            if wt.get("branch") == args.name
-            or os.path.basename(wt.get("path", "")) == args.name
+            if wt.get("branch") == name
+            or os.path.basename(wt.get("path", "")) == name
+            or os.path.basename(wt.get("path", "")) == os.path.basename(name)
+            or wt.get("path") == abs_name
         ]
         if not targets:
             print(f"Worktree '{args.name}' not found.")
