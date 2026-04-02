@@ -19,6 +19,7 @@ from nono_dev.commands import (
     stop,
     triage,
     vm_status,
+    worktree_cmd,
 )
 
 
@@ -50,6 +51,7 @@ def main():
     stop.add_parser(subparsers)
     cleanup.add_parser(subparsers)
     prune.add_parser(subparsers)
+    worktree_cmd.add_parser(subparsers)
 
     args = parser.parse_args()
 

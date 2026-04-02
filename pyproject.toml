@@ -12,7 +12,7 @@ nono-dev = "nono_dev.cli:main"
 include = ["nono_dev*"]
 
 [tool.setuptools.package-data]
-"nono_dev" = ["prompts/*.md"]
+"nono_dev" = ["prompts/*.md", "dotfiles/.*", "dotfiles/*.toml"]
 
 [build-system]
 requires = ["setuptools>=64"]

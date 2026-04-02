@@ -15,6 +15,13 @@ BASE_PACKAGES = [
     "curl",
 ]
 
+SHELL_PACKAGES = [
+    "zsh",
+    "tmux",
+    "ripgrep",
+    "fzf",
+]
+
 MOTD_TEMPLATE = """\
 --------------------------------------------------
 Nono Development Environment ({os})

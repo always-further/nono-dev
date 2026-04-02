@@ -1,11 +1,23 @@
 """Create an OrbStack VM with Rust build dependencies."""
 
+import importlib.resources
 import os
 import sys
 import tempfile
 
 from nono_dev import orbstack, template
-from nono_dev.config import BASE_PACKAGES, DEFAULT_OS, DEFAULT_VM_NAME
+from nono_dev.config import BASE_PACKAGES, DEFAULT_OS, DEFAULT_VM_NAME, SHELL_PACKAGES
+
+
+def _write_file_in_vm(vm_name, dest_path, content, owner):
+    """Write a file into the VM using a base64-encoded transfer."""
+    import base64
+    encoded = base64.b64encode(content.encode()).decode()
+    orbstack.run_in_vm(
+        vm_name,
+        f"echo '{encoded}' | base64 -d > {dest_path} && "
+        f"chown {owner}:{owner} {dest_path}",
+    )
 
 
 def add_parser(subparsers):
@@ -35,6 +47,10 @@ def add_parser(subparsers):
         "--no-rust", action="store_true",
         help="Skip Rust/Cargo installation",
     )
+    parser.add_argument(
+        "--shell-setup", action="store_true",
+        help="Install zsh, starship, tmux, ripgrep, fzf and configure dotfiles",
+    )
     parser.set_defaults(func=run)
 
 
@@ -61,6 +77,7 @@ def run(args):
         username=username,
         os_name=args.os_name,
         mount_path=mount_path,
+        shell_setup=args.shell_setup,
     )
 
     with tempfile.NamedTemporaryFile(
@@ -76,6 +93,8 @@ def run(args):
         os.unlink(cloud_init_path)
 
     all_packages = list(BASE_PACKAGES) + extra_packages
+    if args.shell_setup:
+        all_packages.extend(SHELL_PACKAGES)
     pkg_list = " ".join(all_packages)
 
     print("Waiting for apt to be available...")
@@ -104,6 +123,63 @@ def run(args):
             args.name, username,
             "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs "
             "| sh -s -- -y",
+        )
+
+    if args.shell_setup:
+        print("Installing starship prompt...")
+        orbstack.run_in_vm(
+            args.name,
+            "curl -fsSL https://starship.rs/install.sh | sh -s -- -y",
+        )
+
+        print("Installing z (directory jumping)...")
+        orbstack.run_in_vm(
+            args.name,
+            "mkdir -p /usr/local/share/z && "
+            "curl -fsSL https://raw.githubusercontent.com/rupa/z/master/z.sh "
+            "-o /usr/local/share/z/z.sh",
+        )
+
+        print("Installing eza...")
+        orbstack.run_in_vm(
+            args.name,
+            "apt-get install -y -qq gpg && "
+            "mkdir -p /etc/apt/keyrings && "
+            "curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc "
+            "| gpg --dearmor -o /etc/apt/keyrings/gierens.gpg && "
+            'echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] '
+            'http://deb.gierens.de stable main" '
+            "> /etc/apt/sources.list.d/gierens.list && "
+            "apt-get update -qq && "
+            "apt-get install -y -qq eza",
+        )
+
+        print("Setting default shell to zsh...")
+        orbstack.run_in_vm(
+            args.name,
+            f"chsh -s /usr/bin/zsh {username}",
+        )
+
+        print("Deploying dotfiles...")
+        orbstack.run_in_vm(
+            args.name,
+            f"mkdir -p /home/{username}/.config",
+        )
+
+        dotfiles_map = {
+            ".zprofile": f"/home/{username}/.zprofile",
+            ".zshrc": f"/home/{username}/.zshrc",
+            ".tmux.conf": f"/home/{username}/.tmux.conf",
+            "starship.toml": f"/home/{username}/.config/starship.toml",
+        }
+        for src_name, dest_path in dotfiles_map.items():
+            ref = importlib.resources.files("nono_dev.dotfiles").joinpath(src_name)
+            content = ref.read_text(encoding="utf-8")
+            _write_file_in_vm(args.name, dest_path, content, username)
+
+        orbstack.run_in_vm(
+            args.name,
+            f"chown -R {username}:{username} /home/{username}",
         )
 
     print(f"""

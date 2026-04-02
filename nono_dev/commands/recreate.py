@@ -16,6 +16,7 @@ def add_parser(subparsers):
     parser.add_argument("--mount", default=None, help="Host directory to mount")
     parser.add_argument("--user", default=None, help="Username in the VM")
     parser.add_argument("--no-rust", action="store_true", help="Skip Rust installation")
+    parser.add_argument("--shell-setup", action="store_true", help="Install zsh, starship, tmux, ripgrep, fzf")
     parser.set_defaults(func=run)
 
 

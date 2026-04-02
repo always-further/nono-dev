@@ -1,0 +1,67 @@
+# nono-dev starship prompt configuration
+# Requires a Nerd Font in your terminal
+
+format = """
+[](purple)[ nono-dev ](bg:purple bold white)[](purple) \
+$hostname\
+$directory\
+$git_branch\
+$git_status\
+$rust\
+$python\
+$cmd_duration\
+$line_break\
+$character"""
+
+add_newline = true
+
+[hostname]
+ssh_only = false
+format = "on [$ssh_symbol$hostname]($style) "
+style = "bold dimmed blue"
+ssh_symbol = " "
+
+[directory]
+truncation_length = 4
+truncate_to_repo = true
+style = "bold cyan"
+format = "in [$path]($style)[$read_only]($read_only_style) "
+read_only = " "
+
+[git_branch]
+format = "[$symbol$branch(:$remote_branch)]($style) "
+symbol = " "
+style = "bold purple"
+
+[git_status]
+format = '([$all_status$ahead_behind]($style) )'
+style = "bold red"
+conflicted = " =${count}"
+ahead = " ${count}"
+behind = " ${count}"
+diverged = " ${ahead_count} ${behind_count}"
+untracked = " ?${count}"
+stashed = " ${count}"
+modified = " !${count}"
+staged = " +${count}"
+renamed = " r${count}"
+deleted = " x${count}"
+
+[rust]
+format = "[$symbol($version)]($style) "
+symbol = " "
+style = "bold 208"
+
+[python]
+format = "[$symbol($version)]($style) "
+symbol = " "
+style = "bold yellow"
+
+[cmd_duration]
+min_time = 2_000
+format = " took [$duration]($style) "
+style = "bold yellow"
+
+[character]
+success_symbol = "[](bold green)"
+error_symbol = "[](bold red)"

@@ -1,14 +1,29 @@
 """Cloud-init configuration builder."""
 
+import importlib.resources
+import os
+
 from nono_dev.config import MOTD_TEMPLATE
 
 
-def build_cloud_init(username, os_name, mount_path=None):
+def _read_dotfile(name):
+    """Read a dotfile from the shipped dotfiles directory."""
+    ref = importlib.resources.files("nono_dev.dotfiles").joinpath(name)
+    path = str(ref)
+    if os.path.isfile(path):
+        with open(path) as f:
+            return f.read()
+    return ref.read_text(encoding="utf-8")
+
+
+def build_cloud_init(username, os_name, mount_path=None, shell_setup=False):
     """Build a cloud-init YAML string from the given parameters."""
+    default_shell = "/usr/bin/zsh" if shell_setup else "/bin/bash"
+
     users = [
         {
             "name": username,
-            "shell": "/bin/bash",
+            "shell": default_shell,
             "sudo": "ALL=(ALL) NOPASSWD:ALL",
             "groups": "sudo",
         },
@@ -33,17 +48,19 @@ def build_cloud_init(username, os_name, mount_path=None):
         f'target-dir = "/home/{username}/.cargo_target_linux"\n'
     )
 
+    write_files = [
+        {"path": "/etc/motd", "content": motd},
+        {
+            "path": f"/home/{username}/.cargo/config.toml",
+            "owner": f"{username}:{username}",
+            "content": cargo_config,
+        },
+    ]
+
     config = {
         "users": users,
         "runcmd": runcmd,
-        "write_files": [
-            {"path": "/etc/motd", "content": motd},
-            {
-                "path": f"/home/{username}/.cargo/config.toml",
-                "owner": f"{username}:{username}",
-                "content": cargo_config,
-            },
-        ],
+        "write_files": write_files,
     }
     return "#cloud-config\n" + _yaml_dump(config)
 
