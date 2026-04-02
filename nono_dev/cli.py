@@ -16,6 +16,7 @@ from nono_dev.commands import (
     recreate,
     review,
     sandbox_status,
+    stop,
     triage,
     vm_status,
 )
@@ -46,6 +47,7 @@ def main():
     feature.add_parser(subparsers)
     attach.add_parser(subparsers)
     sandbox_status.add_parser(subparsers)
+    stop.add_parser(subparsers)
     cleanup.add_parser(subparsers)
     prune.add_parser(subparsers)
 

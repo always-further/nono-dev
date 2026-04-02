@@ -33,7 +33,8 @@ def run(args):
 
     session_id = nono.run_detached(
         session_name,
-        reads=[os.getcwd()],
+        allows=[os.getcwd()],
+        allow_cwd=True,
         system_prompt=prompt_path,
         user_prompt=str(args.pr_number),
         rollback=rollback,
