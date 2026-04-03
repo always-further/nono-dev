@@ -125,6 +125,12 @@ def run(args):
             "| sh -s -- -y",
         )
 
+        print("Installing cargo-audit...")
+        orbstack.run_in_vm_as_user(
+            args.name, username,
+            "source ~/.cargo/env && cargo install cargo-audit",
+        )
+
     if args.shell_setup:
         print("Installing starship prompt...")
         orbstack.run_in_vm(

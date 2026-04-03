@@ -4,7 +4,7 @@ from nono_dev import orbstack
 
 
 def add_parser(subparsers):
-    parser = subparsers.add_parser("vm-status", help="Show OrbStack VM status")
+    parser = subparsers.add_parser("status", help="Show OrbStack VM status")
     parser.set_defaults(func=run)
 
 

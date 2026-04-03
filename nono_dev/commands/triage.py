@@ -10,7 +10,7 @@ def add_parser(subparsers):
         "triage", help="Triage a GitHub issue with a sandboxed agent",
     )
     parser.add_argument(
-        "issue_number", type=int, help="GitHub issue number to triage",
+        "issue_number", help="GitHub issue number or URL",
     )
     parser.set_defaults(func=run)
 
@@ -18,11 +18,12 @@ def add_parser(subparsers):
 def run(args):
     nono.check_installed()
     config = project_config.load()
+    issue_number = project_config.parse_github_ref(args.issue_number)
     repo = project_config.get_repo(config)
     prompt_path = project_config.get_prompt_path("triage", config)
     rollback = project_config.get_rollback(config)
 
-    session_name = f"triage-{args.issue_number}"
+    session_name = f"triage-{issue_number}"
 
     sessions = nono.ps_json(include_all=False)
     for s in sessions:
@@ -36,10 +37,10 @@ def run(args):
         allows=[os.getcwd()],
         allow_cwd=True,
         system_prompt=prompt_path,
-        user_prompt=str(args.issue_number),
+        user_prompt=str(issue_number),
         rollback=rollback,
     )
 
-    print(f"Triage session started for issue #{args.issue_number} ({repo})")
+    print(f"Triage session started for issue #{issue_number} ({repo})")
     print(f"  Session: {session_id}")
     print(f"  Attach:  nono attach {session_id}")

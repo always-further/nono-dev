@@ -102,6 +102,36 @@ def _repo_from_git_remote():
     return None
 
 
+def parse_github_ref(value):
+    """Parse a GitHub issue/PR number from a number or URL.
+
+    Accepts:
+        "576"
+        "https://github.com/org/repo/issues/576"
+        "https://github.com/org/repo/pull/576"
+
+    Returns the number as an int, or exits with an error.
+    """
+    import re
+    # Plain number
+    if value.isdigit():
+        return int(value)
+
+    # GitHub URL
+    m = re.match(
+        r"https?://github\.com/[^/]+/[^/]+/(?:issues|pull)/(\d+)",
+        value,
+    )
+    if m:
+        return int(m.group(1))
+
+    print(
+        f"Error: '{value}' is not a valid issue/PR number or GitHub URL.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
 def get_worktree_dir(config):
     """Return the absolute path to the worktree directory."""
     wt_dir = config["worktree"]["dir"]

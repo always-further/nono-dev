@@ -10,7 +10,7 @@ def add_parser(subparsers):
         "fix", help="Fix a GitHub issue in a sandboxed worktree",
     )
     parser.add_argument(
-        "issue_number", type=int, help="GitHub issue number to fix",
+        "issue_number", help="GitHub issue number or URL",
     )
     parser.set_defaults(func=run)
 
@@ -18,14 +18,15 @@ def add_parser(subparsers):
 def run(args):
     nono.check_installed()
     config = project_config.load()
+    issue_number = project_config.parse_github_ref(args.issue_number)
     repo = project_config.get_repo(config)
     prompt_path = project_config.get_prompt_path("fix", config)
     rollback = project_config.get_rollback(config)
     wt_dir = project_config.get_worktree_dir(config)
 
-    branch = f"issue-{args.issue_number}"
+    branch = f"issue-{issue_number}"
     wt_path = os.path.join(wt_dir, branch)
-    session_name = f"fix-{args.issue_number}"
+    session_name = f"fix-{issue_number}"
 
     sessions = nono.ps_json(include_all=False)
     for s in sessions:
@@ -47,22 +48,22 @@ def run(args):
 
     # Grant read access to the main repo so Claude's Read/Edit tools
     # can follow symlinks from the worktree back to the canonical paths.
-    # Grant write access to .git/worktrees/ for git index lock files.
+    # Grant write access to .git/ for commits, index, refs, objects.
     repo_root = os.getcwd()
-    git_worktrees_dir = os.path.join(repo_root, ".git", "worktrees")
+    git_dir = os.path.join(repo_root, ".git")
 
     session_id = nono.run_detached(
         session_name,
-        allows=[abs_path, git_worktrees_dir],
+        allows=[abs_path, git_dir],
         reads=[repo_root],
         allow_cwd=True,
         system_prompt=prompt_path,
-        user_prompt=str(args.issue_number),
+        user_prompt=str(issue_number),
         rollback=rollback,
         workdir=abs_path,
     )
 
-    print(f"Fix session started for issue #{args.issue_number} ({repo})")
+    print(f"Fix session started for issue #{issue_number} ({repo})")
     print(f"  Worktree: {abs_path}")
     print(f"  Branch:   {branch}")
     print(f"  Session:  {session_id}")
