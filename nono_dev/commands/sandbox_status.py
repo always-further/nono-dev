@@ -9,7 +9,7 @@ from nono_dev import nono, project_config, style, worktree
 
 def add_parser(subparsers):
     parser = subparsers.add_parser(
-        "status", help="Show worktree and session status dashboard",
+        "list", help="Show worktree and session status dashboard",
     )
     parser.set_defaults(func=run)
 

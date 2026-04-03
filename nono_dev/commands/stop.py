@@ -23,10 +23,20 @@ def add_parser(subparsers):
 
 def _resolve_session_id(target, sessions):
     """Resolve a target to a session ID."""
+    import re
+
     # Try by session name
     by_name = [s for s in sessions if s.get("name") == target]
     if len(by_name) == 1:
         return by_name[0]["session_id"]
+
+    # Try by worktree branch name (e.g. issue-123 -> fix-123)
+    m = re.match(r"^issue-(\d+)$", target)
+    if m:
+        fix_name = f"fix-{m.group(1)}"
+        by_fix = [s for s in sessions if s.get("name") == fix_name]
+        if len(by_fix) == 1:
+            return by_fix[0]["session_id"]
 
     # Try by issue/PR number
     if target.isdigit():

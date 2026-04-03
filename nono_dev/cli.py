@@ -12,6 +12,7 @@ from nono_dev.commands import (
     feature,
     fix,
     git_cmd,
+    inspect_cmd,
     prune,
     recreate,
     review,
@@ -39,7 +40,8 @@ def _print_main_help():
     print()
 
     print(style.header("  Session Management") + style.dim("  (nono-dev sb ...)"))
-    _help_row("sb status", "", "Show session and worktree dashboard")
+    _help_row("sb list", "", "Show session and worktree dashboard")
+    _help_row("sb inspect", "<target>", "Show detailed session and worktree info")
     _help_row("sb attach", "<target>", "Attach to a running session")
     _help_row("sb stop", "<target>", "Stop a running session")
     _help_row("sb prune", "", "Clean up old session files")
@@ -93,6 +95,15 @@ def _print_group_help(group_name, commands):
 
 
 def main():
+    # Handle --complete before argparse to avoid interference
+    if "--complete" in sys.argv:
+        from nono_dev.completions import get_completions
+        idx = sys.argv.index("--complete")
+        words = sys.argv[idx + 1:]
+        for c in get_completions(words):
+            print(c)
+        sys.exit(0)
+
     parser = argparse.ArgumentParser(
         prog="nono-dev",
         description="Development environment manager for the nono project",
@@ -132,13 +143,15 @@ def main():
     # sb group
     sb_parser = subparsers.add_parser("sb", help="Manage sandbox sessions")
     sb_parser.set_defaults(func=_print_group_help("sb", [
-        ("status", "", "Show session and worktree dashboard"),
+        ("list", "", "Show session and worktree dashboard"),
+        ("inspect", "<target>", "Show detailed session and worktree info"),
         ("attach", "<target>", "Attach to a running session"),
         ("stop", "<target>", "Stop a running session"),
         ("prune", "", "Clean up old session files"),
     ]))
     sb_sub = sb_parser.add_subparsers(dest="sb_command")
     sandbox_status.add_parser(sb_sub)
+    inspect_cmd.add_parser(sb_sub)
     attach.add_parser(sb_sub)
     stop.add_parser(sb_sub)
     prune.add_parser(sb_sub)

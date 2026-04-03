@@ -19,6 +19,24 @@ wt() {
         nono-dev wt cd "$1"
     fi
 }
+
+# nono-dev zsh completions
+if [ -n "$ZSH_VERSION" ]; then
+    _nono_dev_complete() {
+        local -a completions
+        local words_str="${words[2,-1]}"
+        completions=(${(f)"$(nono-dev --complete $words_str 2>/dev/null)"})
+        _describe 'nono-dev' completions
+    }
+    compdef _nono_dev_complete nono-dev
+
+    _wt_complete() {
+        local -a completions
+        completions=(${(f)"$(nono-dev --complete wt cd ${words[2]} 2>/dev/null)"})
+        _describe 'worktree' completions
+    }
+    compdef _wt_complete wt
+fi
 '''
 
 SHELL_INIT_LINE = 'eval "$(nono-dev shell-init)"'
@@ -42,7 +60,6 @@ def _detect_shell_rc():
     if "zsh" in shell:
         return os.path.expanduser("~/.zshrc")
     if "bash" in shell:
-        # Prefer .bashrc, fall back to .bash_profile
         bashrc = os.path.expanduser("~/.bashrc")
         if os.path.exists(bashrc):
             return bashrc
