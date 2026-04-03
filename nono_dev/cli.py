@@ -11,6 +11,7 @@ from nono_dev.commands import (
     destroy,
     feature,
     fix,
+    git_cmd,
     prune,
     recreate,
     review,
@@ -69,6 +70,9 @@ def main():
 
     # wt group -- worktree management
     worktree_cmd.add_parser(subparsers)
+
+    # git group -- AI-assisted git operations
+    git_cmd.add_parser(subparsers)
 
     # Utilities
     shell_init.add_parser(subparsers)

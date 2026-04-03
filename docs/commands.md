@@ -180,6 +180,33 @@ Worktree 'issue-42' has uncommitted changes (+34 -12). Delete anyway? [y/N]
 
 ---
 
+## `git` -- AI-Assisted Git Operations
+
+### `git commit`
+
+Generate a commit message using Gemini AI and commit with sign-off.
+
+```bash
+nono-dev git commit
+```
+
+This command:
+
+1. Collects all staged, unstaged, and untracked changes
+2. Sends the diff to Gemini 2.5 Flash to generate a [conventional commit](https://www.conventionalcommits.org/) message
+3. Shows the proposed message and asks for confirmation
+4. Stages all changes and commits with `git commit -s`
+
+Options at the prompt:
+
+- **Y** -- commit with the proposed message
+- **n** -- abort
+- **e** -- open the message in `$EDITOR` for manual editing before committing
+
+Requires `GEMINI_API_KEY` or `GOOGLE_API_KEY` set in your environment.
+
+---
+
 ## `vm` -- OrbStack VM Management
 
 ### `vm create`

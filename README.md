@@ -106,6 +106,7 @@ nono-dev feature <branch>         Start a feature in a worktree
 nono-dev vm create|connect|status|destroy|recreate
 nono-dev sb status|attach|stop|prune
 nono-dev wt list|cd|cleanup
+nono-dev git commit               AI-generated conventional commit
 
 nono-dev shell-init               Print shell functions for .zshrc
 ```
