@@ -4,214 +4,126 @@
 
 # nono-dev
 
-Development environment manager for the nono project. Creates consistent [OrbStack](https://orbstack.dev/) Linux VMs with Rust build dependencies so every developer on the team gets an identical build environment in seconds.
+Development environment and sandboxed workflow manager for the [nono](https://github.com/always-further/nono) project. Provides two things:
 
-OrbStack is a lightweight alternative to Docker Desktop and Linux VMs on macOS. It runs Linux distributions as fast, native virtual machines with seamless macOS integration.
+1. **OrbStack Linux VMs** with Rust build toolchains for cross-compilation on macOS.
+2. **Sandboxed AI workflows** -- issue triage, bug fixing, PR review, and feature development, each isolated in a git worktree with [nono](https://docs.nono.sh) sandbox protections.
 
 ## Prerequisites
 
-- macOS with [OrbStack](https://orbstack.dev/) installed
-- Python 3.9+ with [uv](https://docs.astral.sh/uv/) or pip
-
-## Quick Start
-
-```bash
-# Clone the repo
-git clone https://github.com/always-further/nono-dev.git
-cd nono-dev
-
-# Install
-uv sync
-
-# Create your VM
-nono-dev create
-
-# Connect to the VM
-nono-dev connect --mount /Users/yourname/path/to/nono # (optional, defaults to current directory)
-```
-
-This creates a Debian VM named `nono-dev` with:
-- Rust toolchain (via rustup)
-- C/C++ build dependencies (build-essential, pkg-config, cmake, etc.)
-- `CARGO_TARGET_DIR` set to `~/.cargo_target_linux`
-- Your current directory mounted at `~/project` inside the VM
-
-Verify the environment is ready:
-
-```bash
-rustc --version
-cc --version
-echo $CARGO_TARGET_DIR
-ls ~/project
-```
+- macOS with [OrbStack](https://orbstack.dev/) (for VM commands)
+- [nono](https://docs.nono.sh/cli/getting_started/installation) (for sandbox commands)
+- [GitHub CLI](https://cli.github.com/) (`gh`) installed and authenticated
+- [Claude Code](https://claude.ai/code) CLI
+- Python 3.11+ with [uv](https://docs.astral.sh/uv/) or pip
 
 ## Installation
 
-There are three ways to run the tool:
+```bash
+git clone https://github.com/always-further/nono-dev.git
+cd nono-dev
+uv sync
+```
+
+Optional shell integration (enables the `wt` function for changing into worktrees):
 
 ```bash
-# 1. Run directly from the repo (no install)
-./nono-dev create
-
-# 2. Install as a CLI tool (recommended for regular use)
-pip install -e .
-nono-dev create
-
-# 3. Run as a Python module
-python -m nono_dev create
+echo 'eval "$(nono-dev shell-init)"' >> ~/.zshrc
 ```
 
-Option 2 makes `nono-dev` available from any directory.
+## Quick Start
 
-## Commands
-
-### create
+### Sandbox workflows
 
 ```bash
-nono-dev create [--os {debian,ubuntu}] [--name NAME] [--extras PKG,PKG] [--mount PATH] [--user USER] [--no-rust]
+# Triage a GitHub issue
+nono-dev triage 42
+
+# Fix a bug in an isolated worktree
+nono-dev fix 123
+
+# Review a pull request
+nono-dev review 456
+nono-dev review https://github.com/org/repo/pull/456
+
+# Start a new feature
+nono-dev feature my-feature
 ```
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--os` | Operating system | `debian` |
-| `--name` | VM name | `nono-dev` |
-| `--extras` | Additional apt packages (comma-separated) | none |
-| `--mount` | Host directory to symlink as `~/project` in the VM | current directory |
-| `--user` | Username in the VM | current macOS user |
-| `--no-rust` | Skip Rust/Cargo installation | |
-
-If the VM already exists, you'll be prompted to recreate, connect, or abort.
-
-Examples:
+All sessions run detached in nono sandboxes with rollback enabled. Manage them with:
 
 ```bash
-# Default Debian VM
-nono-dev create
-
-# Ubuntu with extra packages
-nono-dev create --os ubuntu --extras protobuf-compiler,libdbus-1-dev
-
-# Mount a specific directory
-nono-dev create --mount /Users/alice/dev/nono
-
-# Skip Rust (just need the C toolchain)
-nono-dev create --no-rust
+nono-dev sb status              # Dashboard of sessions and worktrees
+nono-dev sb attach 123          # Attach to a session by issue number
+nono-dev sb attach fix-123      # Or by session name
+nono-dev sb stop review-456     # Stop a session
 ```
 
-### connect
+### Worktree management
 
 ```bash
-nono-dev connect [--name NAME]
+nono-dev wt list                # List managed worktrees
+wt issue-123                    # cd into a worktree (requires shell-init)
+nono-dev wt cleanup issue-123   # Remove a worktree and its branch
+nono-dev wt cleanup --all       # Remove all managed worktrees
 ```
 
-Opens an interactive shell inside the VM.
-
-### status
+### OrbStack VMs
 
 ```bash
-nono-dev status
+nono-dev vm create              # Create a Debian VM with Rust toolchain
+nono-dev vm create --shell-setup  # With zsh, starship, eza, tmux, ripgrep, fzf
+nono-dev vm connect             # SSH into the VM
+nono-dev vm status              # List VMs
+nono-dev vm destroy             # Delete the VM
 ```
 
-Lists all OrbStack VMs and their current state.
+## Configuration
 
-### destroy
+Create `nono-dev.toml` in your project root (optional -- repo is auto-detected from git remote):
 
-```bash
-nono-dev destroy [--name NAME] [--force]
+```toml
+[project]
+repo = "always-further/nono"
+
+[worktree]
+dir = ".worktrees"
+
+[rollback]
+enabled = true
 ```
 
-Deletes a VM. Prompts for confirmation unless `--force` is passed.
+See [Configuration docs](docs/configuration.md) for all options.
 
-### recreate
-
-```bash
-nono-dev recreate [--name NAME] [--os ...] [--extras ...] [--mount ...]
-```
-
-Destroys and recreates a VM in one step. Accepts all the same flags as `create`.
-
-## Working with the VM
-
-### Project Mount
-
-Your macOS project directory is available inside the VM at `~/project`. Edit files on macOS, build and run inside Linux:
-
-```bash
-# On the VM
-cd ~/project
-cargo build
-cargo test
-```
-
-Changes are reflected immediately in both directions -- no syncing needed.
-
-### SSH Agent Forwarding
-
-Your macOS SSH agent is automatically forwarded into the VM. Git operations over SSH work without copying keys:
-
-```bash
-# Inside the VM -- uses your macOS SSH keys
-git clone git@github.com:your-org/nono.git
-```
-
-### VS Code Remote Development
-
-Use VS Code's Remote-SSH extension to edit and debug inside the VM while keeping the macOS UI:
-
-1. Install the [Remote - SSH](https://marketplace.visualstudio.com/items?itemName=ms-vscode.remote-ssh) extension
-2. Connect to the VM: `Cmd+Shift+P` -> `Remote-SSH: Connect to Host` -> `nono-dev`
-3. Open `~/project`
-
-The Rust Language Server, `cargo check`, and all tooling run inside the Linux environment.
-
-### Networking
-
-Each VM gets a `.orb.local` domain. If you're running a dev server inside the VM, access it from macOS at:
+## CLI Reference
 
 ```
-http://nono-dev.orb.local:8080
+nono-dev triage <issue>           Triage a GitHub issue
+nono-dev fix <issue>              Fix a GitHub issue in a worktree
+nono-dev review <pr>              Review a GitHub PR
+nono-dev feature <branch>         Start a feature in a worktree
+
+nono-dev vm create|connect|status|destroy|recreate
+nono-dev sb status|attach|stop|prune
+nono-dev wt list|cd|cleanup
+
+nono-dev shell-init               Print shell functions for .zshrc
 ```
 
-No port forwarding configuration needed.
+Issues and PRs accept both numbers (`123`) and GitHub URLs.
 
-## Installed Packages
+## VM Environment
 
-The base environment includes:
+VMs created with `nono-dev vm create` include:
 
-- `build-essential` (gcc, g++, make)
-- `pkg-config`
-- `libssl-dev`
-- `cmake`
-- `perl`
-- `git`
-- `curl`
+- Rust toolchain (rustup) with cargo-audit
+- Build dependencies: build-essential, pkg-config, libssl-dev, cmake, git, curl
+- `CARGO_TARGET_DIR` set to `~/.cargo_target_linux` (avoids conflicts with macOS builds)
+- Project mounted at `~/project`
+- SSH agent forwarding
 
-Add more at creation time with `--extras`:
+With `--shell-setup`:
 
-```bash
-nono-dev create --extras protobuf-compiler,libdbus-1-dev,clang
-```
-
-## Cleanup
-
-```bash
-# Remove a specific VM
-nono-dev destroy --name nono-dev
-
-# Skip the confirmation prompt
-nono-dev destroy --force
-```
-
-
-# Roadmap
-
-- [x] Basic VM creation with Rust and build tools
-- [x] Project directory mounting
-- [x] SSH agent forwarding
-- [x] CLI tool with create/connect/destroy commands
-- [x] Custom OS selection (Debian/Ubuntu)
-- [x] Custom package installation
-- [x] VM status listing
-- [x] Recreate command for easy teardown/setup
-- [ ] Container support (e.g. for testing in multiple distros)
-- [ ] Git workspace integration and nono sandboxing (start claude in nono with a git work tree).
+- zsh with starship prompt (Nerd Font icons)
+- eza (ls replacement with icons), ripgrep, fzf, tmux, z
+- Pre-configured dotfiles (.zshrc, .tmux.conf, starship.toml)

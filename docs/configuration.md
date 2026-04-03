@@ -6,7 +6,7 @@ nono-dev is configured via a `nono-dev.toml` file placed in the root of your pro
 
 ```toml
 [project]
-repo = "org/repo"  # GitHub org/repo for gh CLI operations (required)
+repo = "org/repo"  # GitHub org/repo (auto-detected from git remote)
 
 [worktree]
 dir = ".worktrees"  # directory for git worktrees (default: ".worktrees")

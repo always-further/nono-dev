@@ -25,16 +25,24 @@ pip install -e .
 
 This makes the `nono-dev` command available globally.
 
+## Shell Integration
+
+For the `wt` shell function (changes directory into worktrees), add to your `.zshrc` or `.bashrc`:
+
+```bash
+eval "$(nono-dev shell-init)"
+```
+
 ## Project Configuration
 
 Create a `nono-dev.toml` file in the root of the project you want to work on:
 
 ```toml
 [project]
-repo = "always-further/nono"  # org/repo for GitHub CLI
+repo = "always-further/nono"  # optional, auto-detected from git remote
 
 [worktree]
-dir = ".worktrees"  # where git worktrees are created
+dir = ".worktrees"
 
 [rollback]
 enabled = true
@@ -54,7 +62,7 @@ nono-dev triage 42
 This spawns a sandboxed Claude agent that retrieves the issue, performs root cause analysis, and posts a follow-up comment. The agent runs in the background -- attach to it at any time:
 
 ```bash
-nono-dev attach 42
+nono-dev sb attach 42
 ```
 
 ### Fix a bug
@@ -63,7 +71,11 @@ nono-dev attach 42
 nono-dev fix 123
 ```
 
-This creates a git worktree at `.worktrees/issue-123`, branches from main, and spawns a sandboxed agent to work on the fix.
+This creates a git worktree at `.worktrees/issue-123`, branches from main, and spawns a sandboxed agent to work on the fix. You can also pass a full URL:
+
+```bash
+nono-dev fix https://github.com/always-further/nono/issues/123
+```
 
 ### Review a PR
 
@@ -84,15 +96,28 @@ Creates a worktree and branch, then spawns an agent you can direct interactively
 ## Checking Status
 
 ```bash
-nono-dev status
+nono-dev sb status
 ```
 
 Shows a dashboard of all worktrees and active sessions:
 
 ```
-WORKTREE          TYPE      ISSUE/PR   SESSION    STATUS    CHANGES
-issue-42          fix       #42        82984b     running   +34 -12
-issue-123         fix       #123       a1b2c3     running   +0 -0
-my-new-feature    feature   -          d4e5f6     running   +15 -3
--                 triage    #42        f7a8b9     stopped   -
+NAME              PATH                    TYPE    ISSUE/PR  SESSION  STATUS   ATTACH    AGE    CHANGES
+issue-42          .worktrees/issue-42     fix     #42       82984b   running  detached  2h30m  +34 -12
+issue-123         .worktrees/issue-123    fix     #123      a1b2c3   running  attached  15m    +0 -0
+my-new-feature    .worktrees/my-feature   feature -         d4e5f6   running  detached  1h     +15 -3
+triage-42         -                       triage  #42       f7a8b9   running  detached  5m     -
+```
+
+## Setting Up a VM
+
+```bash
+# Basic VM with Rust toolchain
+nono-dev vm create
+
+# With zsh, starship, eza, tmux, ripgrep, fzf
+nono-dev vm create --shell-setup
+
+# Connect
+nono-dev vm connect
 ```

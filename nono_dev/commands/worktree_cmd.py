@@ -18,7 +18,7 @@ def add_parser(subparsers):
     list_parser.set_defaults(func=run_list)
 
     # wt cd
-    cd_parser = wt_sub.add_parser("cd", help="Print worktree path (used by shell function)")
+    cd_parser = wt_sub.add_parser("cd", help="Open a shell in a worktree directory")
     cd_parser.add_argument("name", help="Worktree branch name, session name, or issue number")
     cd_parser.set_defaults(func=run_cd)
 
@@ -105,7 +105,7 @@ def run_list(_args):
 
 
 def run_cd(args):
-    """Print the path to a worktree for the shell function to cd into."""
+    """Print the path to a worktree (used by the wt shell function)."""
     config = project_config.load()
     managed, all_wts, _ = _get_managed_worktrees(config)
     main_wt = [wt for wt in all_wts if wt not in managed]

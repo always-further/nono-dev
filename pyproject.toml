@@ -5,6 +5,11 @@ description = "Development environment manager for the nono project"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+docs = [
+    "mkdocs-material",
+]
+
 [project.scripts]
 nono-dev = "nono_dev.cli:main"
 
