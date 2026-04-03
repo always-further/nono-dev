@@ -3,15 +3,28 @@
 import os
 import sys
 
-from nono_dev import nono, project_config, worktree
+from nono_dev import nono, project_config, style, worktree
 from nono_dev.commands.sandbox_status import _parse_session_name
+
+
+def _wt_help(_args):
+    """Print styled wt group help."""
+    print()
+    print(style.banner("  nono-dev wt"))
+    print()
+    print(f"    {style.value('wt list'):<35}    {style.dim('List managed worktrees')}")
+    print(f"    {style.value('wt cd'):<35} {style.muted('<name>')}  {style.dim('Open a shell in a worktree')}")
+    print(f"    {style.value('wt cleanup'):<35} {style.muted('<name|--all>')}  {style.dim('Remove worktrees and branches')}")
+    print()
+    import sys
+    sys.exit(0)
 
 
 def add_parser(subparsers):
     """Register the 'wt' command group with list/cd/cleanup subcommands."""
     wt_parser = subparsers.add_parser("wt", help="Manage worktrees")
     wt_sub = wt_parser.add_subparsers(dest="wt_command")
-    wt_parser.set_defaults(func=lambda _: wt_parser.print_help())
+    wt_parser.set_defaults(func=_wt_help)
 
     # wt list
     list_parser = wt_sub.add_parser("list", help="List managed worktrees")
@@ -93,15 +106,15 @@ def run_list(_args):
     managed, _, project_root = _get_managed_worktrees(config)
 
     if not managed:
-        print("No managed worktrees found.")
+        print(style.muted("No managed worktrees found."))
         return
 
     for wt in managed:
         branch = wt.get("branch", os.path.basename(wt["path"]))
         rel_path = os.path.relpath(wt["path"], project_root)
         has_ch = worktree.has_changes(wt["path"]) if os.path.isdir(wt["path"]) else False
-        marker = " *" if has_ch else ""
-        print(f"  {branch:<25} {rel_path}{marker}")
+        marker = style.warning(" *") if has_ch else ""
+        print(f"  {style.value(branch):<35} {style.muted(rel_path)}{marker}")
 
 
 def run_cd(args):
@@ -179,4 +192,4 @@ def run_cleanup(args):
 
         worktree.remove(path, force=True, cwd=project_root)
         worktree.delete_branch(branch, cwd=project_root)
-        print(f"  Removed '{branch}'.")
+        print(f"  {style.success('Removed')} {style.value(branch)}")

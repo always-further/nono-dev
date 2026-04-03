@@ -40,6 +40,15 @@ def run(args):
     if len(by_name) == 1:
         nono.attach(by_name[0]["session_id"])
 
+    # Try matching by worktree branch name (e.g. issue-123 -> fix-123)
+    import re
+    m = re.match(r"^issue-(\d+)$", target)
+    if m:
+        fix_name = f"fix-{m.group(1)}"
+        by_fix = [s for s in sessions if s.get("name") == fix_name]
+        if len(by_fix) == 1:
+            nono.attach(by_fix[0]["session_id"])
+
     # If target is numeric, search by issue/PR number in session names
     if target.isdigit():
         matches = [

@@ -3,7 +3,7 @@
 import subprocess
 import sys
 
-from nono_dev import gemini
+from nono_dev import gemini, style
 
 
 COMMIT_SYSTEM_PROMPT = """\
@@ -31,7 +31,16 @@ def add_parser(subparsers):
     """Register the 'git' command group."""
     git_parser = subparsers.add_parser("git", help="AI-assisted git operations")
     git_sub = git_parser.add_subparsers(dest="git_command")
-    git_parser.set_defaults(func=lambda _: git_parser.print_help())
+
+    def _git_help(_args):
+        print()
+        print(style.banner("  nono-dev git"))
+        print()
+        print(f"    {style.value('git commit'):<35}    {style.dim('AI-generated conventional commit')}")
+        print()
+        sys.exit(0)
+
+    git_parser.set_defaults(func=_git_help)
 
     commit_parser = git_sub.add_parser(
         "commit", help="Generate a commit message with AI and commit",
@@ -41,12 +50,10 @@ def add_parser(subparsers):
 
 def _get_diff():
     """Get the combined diff of staged and unstaged changes."""
-    # Unstaged changes
     unstaged = subprocess.run(
         ["git", "diff"],
         capture_output=True, text=True,
     )
-    # Staged changes
     staged = subprocess.run(
         ["git", "diff", "--cached"],
         capture_output=True, text=True,
@@ -75,9 +82,9 @@ def _commit(message):
         capture_output=True, text=True,
     )
     if result.returncode != 0:
-        print(f"Commit failed: {result.stderr.strip()}", file=sys.stderr)
+        print(style.error(f"Commit failed: {result.stderr.strip()}"), file=sys.stderr)
         sys.exit(1)
-    print(result.stdout.strip())
+    print(style.success(result.stdout.strip()))
 
 
 def run_commit(_args):
@@ -85,7 +92,7 @@ def run_commit(_args):
     untracked = _get_untracked()
 
     if not diff and not untracked:
-        print("No changes to commit.")
+        print(style.muted("No changes to commit."))
         return
 
     prompt_parts = []
@@ -96,7 +103,7 @@ def run_commit(_args):
 
     prompt = "Generate a commit message for these changes:\n\n" + "\n\n".join(prompt_parts)
 
-    print("Generating commit message...")
+    print(style.info("Generating commit message..."))
     message = gemini.generate(prompt, system_prompt=COMMIT_SYSTEM_PROMPT).strip()
 
     # Strip any markdown code fences the model might add
@@ -105,18 +112,28 @@ def run_commit(_args):
         lines = [l for l in lines if not l.startswith("```")]
         message = "\n".join(lines).strip()
 
+    # Display the commit message with styling
     print()
-    print(message)
+    msg_lines = message.split("\n")
+    if msg_lines:
+        print(style.commit_title(msg_lines[0]))
+        for line in msg_lines[1:]:
+            if line.strip().startswith("- "):
+                print(style.commit_body(line))
+            elif line.strip():
+                print(style.muted(line))
+            else:
+                print()
     print()
 
-    answer = input("Commit with this message? [Y/n/e(dit)] ").strip().lower()
+    answer = input(style.prompt_text("Commit with this message? ") + style.muted("[Y/n/e(dit)] ")).strip().lower()
     if answer == "n":
-        print("Aborted.")
+        print(style.warning("Aborted."))
         return
     if answer == "e":
         message = _edit_message(message)
         if not message:
-            print("Aborted.")
+            print(style.warning("Aborted."))
             return
 
     _stage_all()
@@ -126,7 +143,11 @@ def run_commit(_args):
     branch = _current_branch()
     remote = _get_remote()
     if branch and remote:
-        push_answer = input(f"Push commit? [Y/n] [{remote}/{branch}] ").strip().lower()
+        push_answer = input(
+            style.prompt_text("Push commit? ")
+            + style.muted("[Y/n] ")
+            + style.value(f"[{remote}/{branch}] ")
+        ).strip().lower()
         if push_answer != "n":
             _push(remote, branch)
 
@@ -153,12 +174,14 @@ def _get_remote():
 
 def _push(remote, branch):
     """Push to remote, setting upstream if needed."""
+    print(style.info(f"Pushing to {remote}/{branch}..."))
     result = subprocess.run(
         ["git", "push", "-u", remote, branch],
     )
     if result.returncode != 0:
-        print("Push failed.", file=sys.stderr)
+        print(style.error("Push failed."), file=sys.stderr)
         sys.exit(1)
+    print(style.success("Pushed."))
 
 
 def _edit_message(message):

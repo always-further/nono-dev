@@ -8,7 +8,7 @@
 dir = ".worktrees"  # directory for git worktrees (default: ".worktrees")
 
 [rollback]
-enabled = true                     # enable nono rollback snapshots (default: true)
+enabled = false                    # enable nono rollback snapshots (default: false)
 # dest = "~/.nono/rollbacks"      # rollback destination (default: ~/.nono/rollbacks/)
 # exclude = [".git", "node_modules"]  # patterns to exclude from snapshots
 

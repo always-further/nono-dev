@@ -36,6 +36,10 @@ def run_detached(
     """
     cmd = ["nono", "run", "--detached", "--name", name, "--profile", profile]
 
+    # Skip large directory trees during trust scan and rollback preflight
+    for skip in ["node_modules", "target", ".venv", "__pycache__", ".next"]:
+        cmd.extend(["--skip-dir", skip])
+
     if rollback is None or rollback.get("enabled", True):
         cmd.append("--rollback")
         dest = rollback.get("dest") if rollback else None

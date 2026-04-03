@@ -10,7 +10,7 @@ CONFIG_FILENAME = "nono-dev.toml"
 DEFAULTS = {
     "project": {"repo": None},
     "worktree": {"dir": ".worktrees"},
-    "rollback": {"enabled": True, "dest": None, "exclude": []},
+    "rollback": {"enabled": False, "dest": None, "exclude": []},
     "prompts": {},
 }
 
@@ -143,8 +143,10 @@ def get_worktree_dir(config):
 def get_rollback(config):
     """Return rollback settings dict: enabled, dest, exclude."""
     rb = dict(config["rollback"])
-    if rb.get("dest") and not os.path.isabs(rb["dest"]):
-        rb["dest"] = os.path.join(config["_config_dir"], rb["dest"])
+    if rb.get("dest"):
+        rb["dest"] = os.path.expanduser(rb["dest"])
+        if not os.path.isabs(rb["dest"]):
+            rb["dest"] = os.path.join(config["_config_dir"], rb["dest"])
     return rb
 
 

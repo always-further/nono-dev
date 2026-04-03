@@ -4,7 +4,7 @@ import os
 import re
 import time
 
-from nono_dev import nono, project_config, worktree
+from nono_dev import nono, project_config, style, worktree
 
 
 def add_parser(subparsers):
@@ -106,8 +106,45 @@ def _collect_worktrees(sessions, config):
     return all_wts
 
 
+def _style_cell(header, cell):
+    """Apply color to a cell based on its column."""
+    if header == "NAME":
+        return style.value(cell) if cell != "-" else style.dim(cell)
+    if header == "PATH":
+        return style.muted(cell)
+    if header == "TYPE":
+        type_colors = {
+            "fix": style.info, "review": style.label,
+            "triage": style.warning, "feature": style.value,
+        }
+        fn = type_colors.get(cell, style.muted)
+        return fn(cell)
+    if header == "STATUS":
+        if cell == "running":
+            return style.status_running(cell)
+        return style.status_stopped(cell) if cell != "-" else style.dim(cell)
+    if header == "ATTACH":
+        if cell == "attached":
+            return style.status_attached(cell)
+        if cell == "detached":
+            return style.status_detached(cell)
+        return style.dim(cell)
+    if header == "CHANGES":
+        if cell.startswith("+") and " -" in cell:
+            parts = cell.split(" ")
+            return style.changes_positive(parts[0]) + " " + style.changes_negative(parts[1])
+        return style.dim(cell)
+    if header == "SESSION":
+        return style.label(cell) if cell != "-" else style.dim(cell)
+    if header == "ISSUE/PR":
+        return style.header(cell) if cell != "-" else style.dim(cell)
+    if header == "AGE":
+        return style.muted(cell)
+    return cell
+
+
 def _print_table(headers, rows):
-    """Print a table with dynamic column widths."""
+    """Print a table with dynamic column widths and colors."""
     if not rows:
         return
 
@@ -121,13 +158,20 @@ def _print_table(headers, rows):
     widths = [w + 2 for w in widths]
 
     # Print header
-    header_line = "".join(h.ljust(w) for h, w in zip(headers, widths))
+    header_line = "".join(
+        style.table_header(h.ljust(w)) for h, w in zip(headers, widths)
+    )
     print(header_line)
 
-    # Print rows
+    # Print rows with per-cell coloring
     for row in rows:
-        line = "".join(cell.ljust(w) for cell, w in zip(row, widths))
-        print(line)
+        parts = []
+        for h, cell, w in zip(headers, row, widths):
+            colored = _style_cell(h, cell)
+            # Pad based on raw cell length, not ANSI-colored length
+            padding = w - len(cell)
+            parts.append(colored + " " * padding)
+        print("".join(parts))
 
 
 def run(_args):
