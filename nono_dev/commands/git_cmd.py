@@ -122,6 +122,44 @@ def run_commit(_args):
     _stage_all()
     _commit(message)
 
+    # Offer to push
+    branch = _current_branch()
+    remote = _get_remote()
+    if branch and remote:
+        push_answer = input(f"Push commit? [Y/n] [{remote}/{branch}] ").strip().lower()
+        if push_answer != "n":
+            _push(remote, branch)
+
+
+def _current_branch():
+    """Get the current git branch name."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True, text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _get_remote():
+    """Get the remote for the current branch, defaulting to origin."""
+    result = subprocess.run(
+        ["git", "config", "--get", "branch." + (_current_branch() or "") + ".remote"],
+        capture_output=True, text=True,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    return "origin"
+
+
+def _push(remote, branch):
+    """Push to remote, setting upstream if needed."""
+    result = subprocess.run(
+        ["git", "push", "-u", remote, branch],
+    )
+    if result.returncode != 0:
+        print("Push failed.", file=sys.stderr)
+        sys.exit(1)
+
 
 def _edit_message(message):
     """Open the message in an editor for the user to modify."""
