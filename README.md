@@ -9,6 +9,8 @@ Development environment and sandboxed workflow manager for the [nono](https://gi
 1. **OrbStack Linux VMs** with Rust build toolchains for cross-compilation on macOS.
 2. **Sandboxed AI workflows** -- issue triage, bug fixing, PR review, and feature development, each isolated in a git worktree with [nono](https://docs.nono.sh) sandbox protections.
 
+See the [Documentation](https://always-further.github.io/nono-dev/) to get started!
+
 ## Prerequisites
 
 - macOS with [OrbStack](https://orbstack.dev/) (for VM commands)
