@@ -42,9 +42,6 @@ def run_detached(
 
     if rollback is None or rollback.get("enabled", True):
         cmd.append("--rollback")
-        dest = rollback.get("dest") if rollback else None
-        if dest:
-            cmd.extend(["--rollback-dest", dest])
         excludes = rollback.get("exclude", []) if rollback else []
         for pattern in excludes:
             cmd.extend(["--rollback-exclude", pattern])
@@ -63,6 +60,9 @@ def run_detached(
         path = os.path.expanduser(git_cfg)
         if os.path.exists(path):
             cmd.extend(["--read-file", path])
+    ssh_dir = os.path.expanduser("~/.ssh")
+    if os.path.isdir(ssh_dir):
+        cmd.extend(["--read", ssh_dir])
 
     if allow_cwd:
         cmd.append("--allow-cwd")
