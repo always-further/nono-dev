@@ -49,7 +49,7 @@ def add_parser(subparsers):
     )
     parser.add_argument(
         "--shell-setup", action="store_true",
-        help="Install zsh, starship, tmux, ripgrep, fzf and configure dotfiles",
+        help="Install zsh, starship, tmux, ripgrep, fzf, zsh-autosuggestions and configure dotfiles",
     )
     parser.set_defaults(func=run)
 
@@ -144,6 +144,14 @@ def run(args):
             "mkdir -p /usr/local/share/z && "
             "curl -fsSL https://raw.githubusercontent.com/rupa/z/master/z.sh "
             "-o /usr/local/share/z/z.sh",
+        )
+
+        print("Installing zsh-autosuggestions...")
+        orbstack.run_in_vm(
+            args.name,
+            "mkdir -p /usr/local/share/zsh-autosuggestions && "
+            "curl -fsSL https://raw.githubusercontent.com/zsh-users/zsh-autosuggestions/master/zsh-autosuggestions.zsh "
+            "-o /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh",
         )
 
         print("Installing eza...")
