@@ -30,7 +30,11 @@ if command -v eza &> /dev/null; then
     alias la='eza --icons -a'
     alias lt='eza --icons --tree --level=2'
 else
-    alias ls='ls --color=auto'
+    if [[ "$OSTYPE" == darwin* ]]; then
+        alias ls='ls -G'
+    else
+        alias ls='ls --color=auto'
+    fi
     alias ll='ls -alh'
     alias la='ls -A'
 fi
@@ -40,7 +44,11 @@ alias gd='git diff'
 alias gl='git log --oneline --graph'
 
 # z - directory jumping
-if [ -f /usr/share/z/z.sh ]; then
+if [ -f /opt/homebrew/etc/profile.d/z.sh ]; then
+    source /opt/homebrew/etc/profile.d/z.sh
+elif [ -f /usr/local/etc/profile.d/z.sh ]; then
+    source /usr/local/etc/profile.d/z.sh
+elif [ -f /usr/share/z/z.sh ]; then
     source /usr/share/z/z.sh
 elif [ -f /usr/local/share/z/z.sh ]; then
     source /usr/local/share/z/z.sh

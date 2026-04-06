@@ -1,4 +1,4 @@
-# Source .zshrc for login shells (OrbStack connects via login shell)
+# Source .zshrc for login shells
 if [ -f "$HOME/.zshrc" ]; then
     source "$HOME/.zshrc"
 fi
