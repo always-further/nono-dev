@@ -30,6 +30,10 @@ STARSHIP_PRESETS = [
 # Tools to install via Homebrew on macOS
 BREW_PACKAGES = ["starship", "eza", "tmux", "z"]
 
+# Nerd Font cask (required for starship preset icons)
+NERD_FONT_CASK = "font-meslo-lg-nerd-font"
+NERD_FONT_NAME = "MesloLGS Nerd Font"
+
 
 def add_parser(subparsers):
     parser = subparsers.add_parser(
@@ -73,24 +77,46 @@ def _install_tools():
     missing = [pkg for pkg in BREW_PACKAGES if not _has_command(pkg)]
     if not missing:
         print(f"  {style.muted('skip')}  All tools already installed")
-        return
+    else:
+        print(f"  {style.info('brew')}  Installing: {', '.join(missing)}")
+        result = subprocess.run(
+            ["brew", "install"] + missing,
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            print(f"  {style.warning('warn')}  brew install failed:")
+            for line in result.stderr.strip().splitlines()[:5]:
+                print(f"         {line}")
+        else:
+            for pkg in missing:
+                if _has_command(pkg):
+                    print(f"  {style.info('ok')}    {pkg}")
+                else:
+                    print(f"  {style.warning('warn')}  {pkg} not found after install")
 
-    print(f"  {style.info('brew')}  Installing: {', '.join(missing)}")
-    result = subprocess.run(
-        ["brew", "install"] + missing,
+    # Install Nerd Font for starship icons
+    font_check = subprocess.run(
+        ["brew", "list", "--cask", NERD_FONT_CASK],
         capture_output=True, text=True,
     )
-    if result.returncode != 0:
-        print(f"  {style.warning('warn')}  brew install failed:")
-        for line in result.stderr.strip().splitlines()[:5]:
-            print(f"         {line}")
-        return
-
-    for pkg in missing:
-        if _has_command(pkg):
-            print(f"  {style.info('ok')}    {pkg}")
+    if font_check.returncode == 0:
+        print(f"  {style.muted('skip')}  {NERD_FONT_CASK} (already installed)")
+    else:
+        print(f"  {style.info('brew')}  Installing: {NERD_FONT_CASK}")
+        result = subprocess.run(
+            ["brew", "install", "--cask", NERD_FONT_CASK],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            print(f"  {style.warning('warn')}  Font install failed:")
+            for line in result.stderr.strip().splitlines()[:5]:
+                print(f"         {line}")
         else:
-            print(f"  {style.warning('warn')}  {pkg} not found after install")
+            print(f"  {style.info('ok')}    {NERD_FONT_CASK}")
+            print()
+            print(f"  {style.warning('note')}  Set your terminal font to {style.value(NERD_FONT_NAME)}")
+            print(style.dim("         Terminal.app: Preferences > Profiles > Font > Change"))
+            print(style.dim("         iTerm2: Preferences > Profiles > Text > Font"))
 
 
 def _deploy_dotfiles(args):
