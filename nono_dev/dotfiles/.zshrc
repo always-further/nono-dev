@@ -1,5 +1,23 @@
 # nono-dev zsh configuration
 
+# PATH - ensure common binary locations are available
+typeset -U path  # deduplicate
+path=(
+    $HOME/.local/bin
+    $HOME/.cargo/bin
+    $HOME/go/bin
+    /opt/homebrew/bin
+    /opt/homebrew/sbin
+    /usr/local/bin
+    /usr/local/sbin
+    /usr/bin
+    /usr/sbin
+    /bin
+    /sbin
+    $path
+)
+export PATH
+
 # History
 HISTFILE=~/.zsh_history
 HISTSIZE=10000
