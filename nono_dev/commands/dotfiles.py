@@ -60,6 +60,20 @@ def _has_command(name):
     return shutil.which(name) is not None
 
 
+def _is_installed(name):
+    """Check if a package is installed (command on PATH or brew package)."""
+    if shutil.which(name) is not None:
+        return True
+    # Some packages (like z) are shell scripts, not binaries
+    if _has_command("brew"):
+        result = subprocess.run(
+            ["brew", "list", name],
+            capture_output=True, text=True,
+        )
+        return result.returncode == 0
+    return False
+
+
 def _install_tools():
     """Install shell tools via Homebrew (macOS only)."""
     if platform.system() != "Darwin":
@@ -74,7 +88,7 @@ def _install_tools():
         print(style.dim("  Then re-run: nono-dev dotfiles"))
         return
 
-    missing = [pkg for pkg in BREW_PACKAGES if not _has_command(pkg)]
+    missing = [pkg for pkg in BREW_PACKAGES if not _is_installed(pkg)]
     if not missing:
         print(f"  {style.muted('skip')}  All tools already installed")
     else:
@@ -89,7 +103,7 @@ def _install_tools():
                 print(f"         {line}")
         else:
             for pkg in missing:
-                if _has_command(pkg):
+                if _is_installed(pkg):
                     print(f"  {style.info('ok')}    {pkg}")
                 else:
                     print(f"  {style.warning('warn')}  {pkg} not found after install")
