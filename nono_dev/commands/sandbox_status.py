@@ -2,6 +2,7 @@
 
 import os
 import re
+import subprocess
 import time
 
 from nono_dev import nono, project_config, style, worktree
@@ -81,6 +82,26 @@ def _format_uptime(started_epoch):
     return f"{days}d{hours}h"
 
 
+def _repo_from_workdir(workdir):
+    """Derive org/repo from a directory's git remote origin URL."""
+    if not workdir or not os.path.isdir(workdir):
+        return None
+    result = subprocess.run(
+        ["git", "remote", "get-url", "origin"],
+        capture_output=True, text=True, cwd=workdir,
+    )
+    if result.returncode != 0:
+        return None
+    url = result.stdout.strip()
+    m = re.match(r"git@[^:]+:(.+?)(?:\.git)?$", url)
+    if m:
+        return m.group(1)
+    m = re.match(r"https?://[^/]+/(.+?)(?:\.git)?$", url)
+    if m:
+        return m.group(1)
+    return None
+
+
 def _collect_worktrees(sessions, config):
     """Collect worktrees from all repos referenced by sessions and config."""
     all_wts = []
@@ -140,6 +161,8 @@ def _style_cell(header, cell):
         return style.header(cell) if cell != "-" else style.dim(cell)
     if header == "AGE":
         return style.muted(cell)
+    if header == "PROJECT":
+        return style.muted(cell) if cell != "-" else style.dim(cell)
     return cell
 
 
@@ -177,25 +200,26 @@ def _print_table(headers, rows):
 def run(_args):
     nono.check_installed()
     config = project_config.load()
-    wt_dir = project_config.get_worktree_dir(config)
 
     sessions = nono.ps_json(include_all=False)
     all_worktrees = _collect_worktrees(sessions, config)
 
-    abs_wt_dir = os.path.abspath(wt_dir)
-    managed_wts = [
-        wt for wt in all_worktrees
-        if wt.get("path", "").startswith(abs_wt_dir)
-    ]
-
-    if not managed_wts and not sessions:
-        print("No worktrees or sessions found.")
+    if not sessions:
+        print("No sandboxes found.")
         return
 
-    headers = ["NAME", "PATH", "TYPE", "ISSUE/PR", "SESSION", "STATUS", "ATTACH", "AGE", "CHANGES"]
-    rows = []
+    # Cache repo lookups by workdir to avoid repeated git calls
+    repo_cache = {}
 
-    shown_branches = set()
+    def _get_project(workdir):
+        if not workdir:
+            return "-"
+        if workdir not in repo_cache:
+            repo_cache[workdir] = _repo_from_workdir(workdir) or "-"
+        return repo_cache[workdir]
+
+    headers = ["PROJECT", "NAME", "PATH", "TYPE", "ISSUE/PR", "SESSION", "STATUS", "ATTACH", "AGE", "CHANGES"]
+    rows = []
 
     for s in sessions:
         name = s.get("name", "")
@@ -204,13 +228,13 @@ def run(_args):
         status = s.get("status", "?")
         attachment = s.get("attachment", "-")
         age = _format_uptime(s.get("started_epoch"))
+        project = _get_project(s.get("workdir"))
 
         wt = _find_worktree(expected_branch, all_worktrees)
 
         if wt:
             wt_name = wt.get("branch", os.path.basename(wt["path"]))
             wt_path = _relative_path(wt["path"], s.get("workdir") or config["_config_dir"])
-            shown_branches.add(wt.get("branch"))
             if os.path.isdir(wt["path"]):
                 adds, dels = worktree.diff_stat(wt["path"])
                 changes = f"+{adds} -{dels}"
@@ -221,27 +245,6 @@ def run(_args):
             wt_path = "-"
             changes = "-"
 
-        rows.append([wt_name, wt_path, session_type, ref, session_id, status, attachment, age, changes])
-
-    for wt in managed_wts:
-        branch = wt.get("branch", os.path.basename(wt["path"]))
-        if branch in shown_branches:
-            continue
-
-        wt_path = _relative_path(wt["path"], config["_config_dir"])
-
-        m = re.match(r"^issue-(\d+)$", branch)
-        if m:
-            wt_type, ref = "fix", f"#{m.group(1)}"
-        else:
-            wt_type, ref = "feature", "-"
-
-        if os.path.isdir(wt["path"]):
-            adds, dels = worktree.diff_stat(wt["path"])
-            changes = f"+{adds} -{dels}"
-        else:
-            changes = "?"
-
-        rows.append([branch, wt_path, wt_type, ref, "-", "-", "-", "-", changes])
+        rows.append([project, wt_name, wt_path, session_type, ref, session_id, status, attachment, age, changes])
 
     _print_table(headers, rows)

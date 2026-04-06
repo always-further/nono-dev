@@ -1,10 +1,16 @@
 """Worktree management commands: list, cd, cleanup."""
 
 import os
+import re
 import sys
 
 from nono_dev import nono, project_config, style, worktree
-from nono_dev.commands.sandbox_status import _parse_session_name
+from nono_dev.commands.sandbox_status import (
+    _format_uptime,
+    _parse_session_name,
+    _print_table,
+    _repo_from_workdir,
+)
 
 
 def _wt_help(_args):
@@ -101,7 +107,7 @@ def _find_worktree_path(target, all_worktrees, sessions):
 
 
 def run_list(_args):
-    """List all managed worktrees."""
+    """List all managed worktrees with project, type, and sandbox info."""
     config = project_config.load()
     managed, _, project_root = _get_managed_worktrees(config)
 
@@ -109,12 +115,56 @@ def run_list(_args):
         print(style.muted("No managed worktrees found."))
         return
 
+    # Get project name
+    project = _repo_from_workdir(project_root) or "-"
+
+    # Get running sessions to match against worktrees
+    try:
+        sessions = nono.ps_json(include_all=False)
+    except Exception:
+        sessions = []
+
+    # Index sessions by expected worktree branch
+    session_by_branch = {}
+    for s in sessions:
+        name = s.get("name", "")
+        _, _, expected_branch = _parse_session_name(name)
+        if expected_branch:
+            session_by_branch[expected_branch] = s
+
+    headers = ["PROJECT", "NAME", "PATH", "TYPE", "ISSUE/PR", "SESSION", "STATUS", "AGE", "CHANGES"]
+    rows = []
+
     for wt in managed:
         branch = wt.get("branch", os.path.basename(wt["path"]))
         rel_path = os.path.relpath(wt["path"], project_root)
-        has_ch = worktree.has_changes(wt["path"]) if os.path.isdir(wt["path"]) else False
-        marker = style.warning(" *") if has_ch else ""
-        print(f"  {style.value(branch):<35} {style.muted(rel_path)}{marker}")
+
+        # Derive type and issue/PR from branch name
+        m = re.match(r"^issue-(\d+)$", branch)
+        if m:
+            wt_type, ref = "fix", f"#{m.group(1)}"
+        else:
+            wt_type, ref = "feature", branch
+
+        # Check for matching sandbox session
+        s = session_by_branch.get(branch)
+        if s:
+            session_id = s.get("session_id", "-")[:6]
+            status = s.get("status", "-")
+            age = _format_uptime(s.get("started_epoch"))
+        else:
+            session_id, status, age = "-", "-", "-"
+
+        # Diff stats
+        if os.path.isdir(wt["path"]):
+            adds, dels = worktree.diff_stat(wt["path"])
+            changes = f"+{adds} -{dels}"
+        else:
+            changes = "?"
+
+        rows.append([project, branch, rel_path, wt_type, ref, session_id, status, age, changes])
+
+    _print_table(headers, rows)
 
 
 def run_cd(args):
