@@ -9,6 +9,7 @@ from nono_dev.commands import (
     connect,
     create,
     destroy,
+    dotfiles,
     feature,
     fix,
     git_cmd,
@@ -67,6 +68,7 @@ def _print_main_help():
 
     print(style.header("  Utilities"))
     _help_row("shell-init", "", "Print shell functions for .zshrc")
+    _help_row("dotfiles", "[--force]", "Deploy shipped dotfiles to local machine")
     print()
 
     print(style.dim("  Run ") + style.info("nono-dev <command> --help") + style.dim(" for details"))
@@ -164,6 +166,7 @@ def main():
 
     # Utilities
     shell_init.add_parser(subparsers)
+    dotfiles.add_parser(subparsers)
 
     args = parser.parse_args()
 

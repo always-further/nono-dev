@@ -60,7 +60,7 @@ def get_completions(words):
 def _top_level():
     return [
         "triage", "fix", "review", "feature",
-        "vm", "sb", "wt", "git", "shell-init",
+        "vm", "sb", "wt", "git", "shell-init", "dotfiles",
     ]
 
 
