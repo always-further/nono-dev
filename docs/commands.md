@@ -263,6 +263,49 @@ nono-dev vm recreate [name] [--os ...] [--extras ...] [--mount ...] [--shell-set
 
 ## Utilities
 
+### `dotfiles`
+
+Deploy shipped dotfiles and install shell tools on the local machine.
+
+```bash
+nono-dev dotfiles
+nono-dev dotfiles --force
+nono-dev dotfiles --no-install
+nono-dev dotfiles --preset nono-dev
+```
+
+This command:
+
+1. Installs shell tools via Homebrew (starship, eza, tmux, z, zsh-autosuggestions)
+2. Installs the MesloLGS Nerd Font for starship icons
+3. Deploys `.zshrc`, `.zprofile`, and `.tmux.conf` to your home directory
+4. Lets you pick a starship prompt preset
+
+Existing files are backed up to `<file>.bak` before overwriting. Files that are already up to date are skipped.
+
+Run this command again after updating nono-dev to pick up any dotfile changes.
+
+| Flag | Description |
+|------|-------------|
+| `--force` | Overwrite existing files without backing up |
+| `--no-install` | Only deploy dotfiles, skip Homebrew tool installation |
+| `--preset NAME` | Use a specific starship preset (skip interactive picker) |
+
+Available starship presets: `nono-dev`, `catppuccin-powerline`, `tokyo-night`, `pastel-powerline`, `bracketed-segments`, `gruvbox-rainbow`, `jetpack`, `pure-preset`.
+
+### `install`
+
+Install nono-dev as a globally available command via `uv tool`.
+
+```bash
+nono-dev install
+nono-dev install --force
+```
+
+| Flag | Description |
+|------|-------------|
+| `--force` | Reinstall even if already installed |
+
 ### `shell-init`
 
 Print shell functions for nono-dev integration. Add to your `.zshrc` or `.bashrc`:

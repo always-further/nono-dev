@@ -109,6 +109,25 @@ my-new-feature    .worktrees/my-feature   feature -         d4e5f6   running  de
 triage-42         -                       triage  #42       f7a8b9   running  detached  5m     -
 ```
 
+## Updating
+
+When a new version of nono-dev is released, pull the latest changes and re-deploy your dotfiles:
+
+```bash
+cd /path/to/nono-dev
+git pull
+nono-dev install --force
+nono-dev dotfiles
+```
+
+The `dotfiles` command detects which files have changed, backs up your existing copies (to `~/.zshrc.bak`, etc.), and deploys the updated versions. If nothing changed, the files are skipped.
+
+After updating, restart your shell or run:
+
+```bash
+source ~/.zshrc
+```
+
 ## Setting Up a VM
 
 ```bash
