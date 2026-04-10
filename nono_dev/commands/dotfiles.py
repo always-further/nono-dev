@@ -28,7 +28,7 @@ STARSHIP_PRESETS = [
 ]
 
 # Tools to install via Homebrew on macOS
-BREW_PACKAGES = ["starship", "eza", "tmux", "z", "zsh-autosuggestions"]
+BREW_PACKAGES = ["starship", "eza", "tmux", "z", "zsh-autosuggestions", "fzf"]
 
 # Nerd Font cask (required for starship preset icons)
 NERD_FONT_CASK = "font-meslo-lg-nerd-font"
