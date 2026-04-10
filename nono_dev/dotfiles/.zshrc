@@ -97,6 +97,9 @@ elif [ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]; then
     source /usr/share/doc/fzf/examples/completion.zsh
 fi
 
+# Local overrides (API keys, secrets, machine-specific config)
+[[ -f ~/.zsh_local ]] && source ~/.zsh_local
+
 # Starship prompt
 if command -v starship &> /dev/null; then
     eval "$(starship init zsh)"
