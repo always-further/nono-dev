@@ -43,18 +43,8 @@ def build_cloud_init(username, os_name, mount_path=None, shell_setup=False):
 
     motd = MOTD_TEMPLATE.format(os=os_name)
 
-    cargo_config = (
-        "[build]\n"
-        f'target-dir = "/home/{username}/.cargo_target_linux"\n'
-    )
-
     write_files = [
         {"path": "/etc/motd", "content": motd},
-        {
-            "path": f"/home/{username}/.cargo/config.toml",
-            "owner": f"{username}:{username}",
-            "content": cargo_config,
-        },
     ]
 
     config = {

@@ -26,6 +26,5 @@ MOTD_TEMPLATE = """\
 --------------------------------------------------
 Nono Development Environment ({os})
 Project:      ~/project
-Cargo config: ~/.cargo/config.toml
 --------------------------------------------------
 """

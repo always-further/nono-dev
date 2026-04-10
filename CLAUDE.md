@@ -65,7 +65,7 @@ nono-dev shell-init
 - All nono interaction goes through `nono_dev/nono.py` -- never shell out to `nono` directly from commands
 - Cloud-init must NOT use the `packages` directive -- it races with OrbStack's own apt-get. Install packages via `orb run` post-create instead
 - The cloud-init `users` directive creates the VM user; OrbStack's default user (e.g. `debian`) is not used
-- `~/.cargo/config.toml` sets `target-dir` (not env vars) to keep Linux builds out of the shared macOS mount
+- Cargo builds use the default `target/` directory inside the project so binaries are at the expected paths for integration tests
 - nono writes session info to stderr, not stdout -- `nono.py` reads both streams
 - The JSON key for session IDs from `nono ps --json` is `session_id`, not `session`
 - Claude Code's `--system-prompt` flag takes inline text, not a file path -- prompts are read and passed as content
