@@ -227,3 +227,25 @@ def sync_status(vm_name):
     subprocess.run(
         ["mutagen", "sync", "list", session_name],
     )
+
+
+def sync_info(vm_name):
+    """Return (host_path, guest_url) for the current sync session, or None."""
+    session_name = _sync_session_name(vm_name)
+    result = subprocess.run(
+        ["mutagen", "sync", "list", "--long", session_name],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return None
+
+    alpha = beta = None
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("Alpha:"):
+            alpha = stripped.split(":", 1)[1].strip()
+        elif stripped.startswith("Beta:"):
+            beta = stripped.split(":", 1)[1].strip()
+    if alpha and beta:
+        return (alpha, beta)
+    return None

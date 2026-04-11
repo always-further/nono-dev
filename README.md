@@ -77,6 +77,8 @@ nono-dev vm create              # Create an Ubuntu VM with Rust toolchain
 nono-dev vm create --shell-setup  # With zsh, starship, eza, bat, fd, ripgrep, direnv, fzf
 nono-dev vm connect             # Shell into the VM
 nono-dev vm status              # List VMs
+nono-dev vm mount               # Show what's currently synced
+nono-dev vm mount /path/to/repo # Switch to a different project
 nono-dev vm destroy             # Delete the VM
 ```
 
@@ -105,7 +107,7 @@ nono-dev fix <issue>              Fix a GitHub issue in a worktree
 nono-dev review <pr>              Review a GitHub PR
 nono-dev feature <branch>         Start a feature in a worktree
 
-nono-dev vm create|connect|status|destroy|recreate
+nono-dev vm create|connect|status|mount|destroy|recreate
 nono-dev sb status|attach|stop|prune
 nono-dev wt list|cd|cleanup
 nono-dev git commit               AI-generated conventional commit

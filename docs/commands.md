@@ -243,6 +243,22 @@ List all Lima VMs and their current state.
 nono-dev vm status
 ```
 
+### `vm mount`
+
+Show or switch the host directory synced into the VM's `~/project`.
+
+```bash
+nono-dev vm mount                    # Show current sync
+nono-dev vm mount /path/to/other     # Switch to a different project
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--name` | `nono-dev` | VM name |
+| `--user` | current macOS user | Username in the VM |
+
+Switching terminates the existing mutagen sync and starts a new one pointing at the given directory. The VM itself is not restarted.
+
 ### `vm destroy`
 
 Delete a VM.

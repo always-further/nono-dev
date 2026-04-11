@@ -15,6 +15,7 @@ from nono_dev.commands import (
     git_cmd,
     inspect_cmd,
     install,
+    mount,
     prune,
     recreate,
     review,
@@ -63,6 +64,7 @@ def _print_main_help():
     _help_row("vm create", "[name]", "Create a development VM")
     _help_row("vm connect", "[name]", "Connect to a VM")
     _help_row("vm status", "", "Show VM status")
+    _help_row("vm mount", "[path]", "Show or switch the synced project directory")
     _help_row("vm destroy", "[name]", "Delete a VM")
     _help_row("vm recreate", "[name]", "Destroy and recreate a VM")
     print()
@@ -134,6 +136,7 @@ def main():
         ("create", "[name]", "Create a development VM"),
         ("connect", "[name]", "Connect to a VM"),
         ("status", "", "Show VM status"),
+        ("mount", "[path]", "Show or switch the synced project directory"),
         ("destroy", "[name]", "Delete a VM"),
         ("recreate", "[name]", "Destroy and recreate a VM"),
     ]))
@@ -141,6 +144,7 @@ def main():
     create.add_parser(vm_sub)
     connect.add_parser(vm_sub)
     vm_status.add_parser(vm_sub)
+    mount.add_parser(vm_sub)
     destroy.add_parser(vm_sub)
     recreate.add_parser(vm_sub)
 
