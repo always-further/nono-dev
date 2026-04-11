@@ -207,7 +207,7 @@ Requires `GEMINI_API_KEY` or `GOOGLE_API_KEY` set in your environment.
 
 ---
 
-## `vm` -- OrbStack VM Management
+## `vm` -- Lima VM Management
 
 ### `vm create`
 
@@ -219,13 +219,13 @@ nono-dev vm create [--os {debian,ubuntu}] [name] [--extras PKG,PKG] [--mount PAT
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--os` | `debian` | Operating system |
+| `--os` | `ubuntu` | Operating system |
 | `name` | `nono-dev` | VM name |
 | `--extras` | none | Additional apt packages (comma-separated) |
-| `--mount` | current directory | Host directory to mount as `~/project` |
+| `--mount` | current directory | Host directory to sync to `~/project` via mutagen |
 | `--user` | current macOS user | Username in the VM |
 | `--no-rust` | | Skip Rust/Cargo installation |
-| `--shell-setup` | | Install zsh, starship, eza, tmux, ripgrep, fzf with dotfiles |
+| `--shell-setup` | | Install zsh, starship, eza, bat, fd, ripgrep, direnv, fzf, tmux with dotfiles |
 
 ### `vm connect`
 
@@ -237,7 +237,7 @@ nono-dev vm connect [name]
 
 ### `vm status`
 
-List all OrbStack VMs and their current state.
+List all Lima VMs and their current state.
 
 ```bash
 nono-dev vm status
@@ -276,9 +276,9 @@ nono-dev dotfiles --preset nono-dev
 
 This command:
 
-1. Installs shell tools via Homebrew (starship, eza, tmux, z, zsh-autosuggestions)
+1. Installs shell tools via Homebrew (starship, eza, bat, fd, ripgrep, direnv, tmux, z, zsh-autosuggestions)
 2. Installs the MesloLGS Nerd Font for starship icons
-3. Deploys `.zshrc`, `.zprofile`, and `.tmux.conf` to your home directory
+3. Deploys `.zshrc`, `.zprofile`, `.direnvrc`, and `.tmux.conf` to your home directory
 4. Lets you pick a starship prompt preset
 
 Existing files are backed up to `<file>.bak` before overwriting. Files that are already up to date are skipped.

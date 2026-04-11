@@ -1,8 +1,8 @@
-"""Delete an OrbStack VM."""
+"""Delete a Lima VM."""
 
 import sys
 
-from nono_dev import orbstack
+from nono_dev import lima
 from nono_dev.config import DEFAULT_VM_NAME
 
 
@@ -20,9 +20,9 @@ def add_parser(subparsers):
 
 
 def run(args):
-    orbstack.check_installed()
+    lima.check_installed()
 
-    if not orbstack.vm_exists(args.name):
+    if not lima.vm_exists(args.name):
         print(f"VM '{args.name}' does not exist.")
         sys.exit(1)
 
@@ -34,5 +34,7 @@ def run(args):
             print("Aborted.")
             sys.exit(0)
 
-    orbstack.delete_vm(args.name)
+    lima.stop_sync(args.name)
+    lima.stop_vm(args.name)
+    lima.delete_vm(args.name)
     print(f"VM '{args.name}' deleted.")

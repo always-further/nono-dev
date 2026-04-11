@@ -18,6 +18,9 @@ path=(
 )
 export PATH
 
+# Keep Linux cargo builds on local disk, separate from macOS shared mount
+export CARGO_TARGET_DIR="$HOME/.cargo_target_linux"
+
 # History
 HISTFILE=~/.zsh_history
 HISTSIZE=100000
@@ -59,11 +62,6 @@ else
     alias ll='ls -alh'
     alias la='ls -A'
 fi
-alias grep='grep --color=auto'
-alias gs='git status'
-alias gd='git diff'
-alias gl='git log --oneline --graph'
-alias nn='cargo run --'
 
 # z - directory jumping
 if [ -f /opt/homebrew/etc/profile.d/z.sh ]; then
@@ -97,10 +95,152 @@ elif [ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]; then
     source /usr/share/doc/fzf/examples/completion.zsh
 fi
 
-# Local overrides (API keys, secrets, machine-specific config)
-[[ -f ~/.zsh_local ]] && source ~/.zsh_local
+#######################################
+# General Settings
+#######################################
 
-# Starship prompt
+# Modern CLI replacements
+if command -v bat &> /dev/null; then
+    alias cat='bat'
+elif command -v batcat &> /dev/null; then
+    alias cat='batcat'
+fi
+
+if command -v fd &> /dev/null; then
+    alias find='fd'
+elif command -v fdfind &> /dev/null; then
+    alias find='fdfind'
+fi
+
+if command -v rg &> /dev/null; then
+    alias grep='rg'
+else
+    alias grep='grep --color=auto'
+fi
+
+# Always use modern ls if available
+if command -v eza >/dev/null 2>&1; then
+  alias ls='eza --icons'
+  alias ll='eza -lah --icons'
+else
+  alias ls='ls --color=auto'
+  alias ll='ls -lah'
+fi
+
+
+#######################################
+# File & Directory Helpers
+#######################################
+
+# Make directory and cd into it
+mkcd() {
+  mkdir -p -- "$1" && cd -- "$1"
+}
+
+# Safer file ops
+alias cp='cp -i'
+alias mv='mv -i'
+alias rm='rm -i'
+
+# Jump to recent dirs
+alias j='cd $(fasd -d -e echo | fzf)'
+
+#######################################
+# Git Aliases
+#######################################
+
+alias gs='git status'
+alias ga='git add .'
+alias gaa='git add --all'
+
+alias gc='git commit -m'
+alias gca='git commit -am'
+
+alias gp='git push'
+alias gpl='git pull'
+
+alias gl='git log --oneline --graph --decorate --all'
+alias gco='git checkout'
+alias gcb='git checkout -b'
+
+# Quick amend
+alias gcae='git commit --amend --no-edit'
+
+# Undo last commit (keep changes)
+alias guncommit='git reset --soft HEAD~1'
+
+
+#######################################
+# Network / Debugging
+#######################################
+
+# Find process using a port
+port() {
+  lsof -i tcp:"$1"
+}
+
+# Kill process on port
+killport() {
+  lsof -ti tcp:"$1" | xargs kill -9
+}
+
+#######################################
+# Rust / Nono Dev
+#######################################
+
+# Run nono locally e.g. nn run -- claude
+nn() {
+  cargo run -- "$@"
+}
+
+# Install from source (for development)
+alias ni='cargo install --path crates/nono-cli'
+
+# nono-dev shortcuts
+alias nd='nono-dev'
+alias ndf='nono-dev fix'
+alias ndt='nono-dev triage'
+alias ndr='nono-dev review'
+alias ndfeat='nono-dev feature'
+
+# Sandbox management
+alias nds='nono-dev sb list'
+alias nda='nono-dev sb attach'
+alias ndx='nono-dev sb stop'
+alias ndi='nono-dev sb inspect'
+
+# Worktree management
+alias ndw='nono-dev wt list'
+alias ndwc='nono-dev wt cd'
+alias ndwx='nono-dev wt cleanup'
+
+# VM management
+alias ndvm='nono-dev vm status'
+alias ndvc='nono-dev vm connect'
+
+#######################################
+# Quality of Life
+#######################################
+
+# Clear + list
+alias cls='clear && ls'
+
+# Show PATH cleanly
+alias path='echo $PATH | tr ":" "\n"'
+
+# Reload shell quickly
+alias reload='source ~/.zshrc'
+
+
+# direnv - auto-load .envrc per directory
+if command -v direnv &> /dev/null; then
+    eval "$(direnv hook zsh)"
+fi
+
+# Starship prompt (must be last hook before local overrides)
 if command -v starship &> /dev/null; then
     eval "$(starship init zsh)"
 fi
+
+# Local overrides (API keys, secrets, machine-specific config)
+[[ -f ~/.zsh_local ]] && source ~/.zsh_local

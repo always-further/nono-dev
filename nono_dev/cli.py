@@ -129,7 +129,7 @@ def main():
     feature.add_parser(subparsers)
 
     # vm group
-    vm_parser = subparsers.add_parser("vm", help="Manage OrbStack VMs")
+    vm_parser = subparsers.add_parser("vm", help="Manage Lima VMs")
     vm_parser.set_defaults(func=_print_group_help("vm", [
         ("create", "[name]", "Create a development VM"),
         ("connect", "[name]", "Connect to a VM"),

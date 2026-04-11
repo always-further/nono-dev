@@ -1,9 +1,9 @@
-"""Connect to an OrbStack VM."""
+"""Connect to a Lima VM."""
 
 import os
 import sys
 
-from nono_dev import orbstack
+from nono_dev import lima
 from nono_dev.config import DEFAULT_VM_NAME
 
 
@@ -17,13 +17,16 @@ def add_parser(subparsers):
 
 
 def run(args):
-    orbstack.check_installed()
+    lima.check_installed()
 
-    if not orbstack.vm_exists(args.name):
+    if not lima.vm_exists(args.name):
         print(f"VM '{args.name}' does not exist.")
-        print(f"Create one with: nono-dev create")
+        print(f"Create one with: nono-dev vm create")
         sys.exit(1)
 
-    user = os.environ.get("USER", "dev")
-    home = f"/home/{user}"
-    os.execvp("orb", ["orb", "-m", args.name, "-w", home])
+    status = lima.vm_status(args.name)
+    if status != "Running":
+        print(f"VM '{args.name}' is not running (status: {status}). Starting...")
+        lima.start_vm(args.name)
+
+    os.execvp("limactl", ["limactl", "shell", args.name])

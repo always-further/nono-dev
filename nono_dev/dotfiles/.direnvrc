@@ -1,0 +1,35 @@
+# Global direnv helpers -- sourced by all .envrc files
+
+# use_rust: activate cargo env and optionally set a target dir
+use_rust() {
+    if [ -f "$HOME/.cargo/env" ]; then
+        source_env "$HOME/.cargo/env"
+    fi
+    if [ -n "$1" ]; then
+        export CARGO_TARGET_DIR="$1"
+    fi
+}
+
+# layout_rust: set CARGO_TARGET_DIR to a project-local .direnv/target
+# keeps build artefacts per-worktree so they don't collide
+layout_rust() {
+    local target_dir
+    target_dir="${direnv_layout_dir}/target"
+    mkdir -p "$target_dir"
+    export CARGO_TARGET_DIR="$target_dir"
+    if [ -f "$HOME/.cargo/env" ]; then
+        source_env "$HOME/.cargo/env"
+    fi
+}
+
+# use_nono_project: standard setup for nono repo development
+# - sources cargo env
+# - sets CARGO_TARGET_DIR to the VM-local build cache
+# - adds local scripts to PATH
+use_nono_project() {
+    use_rust "$HOME/.cargo_target_linux"
+
+    # Add project-local scripts/tools to PATH
+    PATH_add bin
+    PATH_add scripts
+}

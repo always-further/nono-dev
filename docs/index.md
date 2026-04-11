@@ -4,7 +4,7 @@
 
 # nono-dev
 
-Sandboxed AI workflows and OrbStack VM management for the nono project.
+Sandboxed AI workflows and Lima VM management for the nono project.
 
 ```bash
 nono-dev fix 123

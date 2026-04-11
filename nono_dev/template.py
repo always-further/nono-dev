@@ -1,9 +1,16 @@
-"""Cloud-init configuration builder."""
+"""Lima instance YAML configuration builder."""
 
 import importlib.resources
 import os
 
-from nono_dev.config import MOTD_TEMPLATE
+from nono_dev.config import (
+    BASE_PACKAGES,
+    DEFAULT_CPUS,
+    DEFAULT_DISK,
+    DEFAULT_MEMORY,
+    MOTD_TEMPLATE,
+    SHELL_PACKAGES,
+)
 
 
 def _read_dotfile(name):
@@ -16,57 +23,214 @@ def _read_dotfile(name):
     return ref.read_text(encoding="utf-8")
 
 
-def build_cloud_init(username, os_name, mount_path=None, shell_setup=False):
-    """Build a cloud-init YAML string from the given parameters."""
-    default_shell = "/usr/bin/zsh" if shell_setup else "/bin/bash"
+def build_lima_config(
+    username,
+    os_name,
+    extra_packages=None,
+    install_rust=True,
+    shell_setup=False,
+    cpus=None,
+    memory=None,
+    disk=None,
+):
+    """Build a Lima instance YAML string."""
+    cpus = cpus or DEFAULT_CPUS
+    memory = memory or DEFAULT_MEMORY
+    disk = disk or DEFAULT_DISK
 
-    users = [
+    all_packages = list(BASE_PACKAGES)
+    if extra_packages:
+        all_packages.extend(extra_packages)
+    if shell_setup:
+        all_packages.extend(SHELL_PACKAGES)
+
+    # -- Build system provision script --
+    # Lima auto-creates a user matching the macOS username with home at
+    # /home/<user>.guest.  We use that user rather than creating our own.
+    system_lines = [
+        "#!/bin/bash",
+        "set -eux",
+        "",
+        "# Install packages",
+        "apt-get update -qq",
+        f"apt-get install -y -qq {' '.join(all_packages)}",
+        "",
+        "# MOTD",
+        f"cat > /etc/motd << 'MOTD_EOF'",
+        MOTD_TEMPLATE.format(os=os_name).rstrip(),
+        "MOTD_EOF",
+    ]
+
+    if shell_setup:
+        system_lines.extend(_shell_setup_system_lines(username))
+
+    system_script = "\n".join(system_lines) + "\n"
+
+    # -- Build user provision script --
+    # Runs as Lima's default user (matches macOS username).
+    # $HOME is /home/<user>.guest -- all paths use $HOME.
+    user_lines = [
+        "#!/bin/bash",
+        "set -eux",
+        "",
+        "# Cargo target directory for cross-compilation",
+        "mkdir -p $HOME/.cargo_target_linux",
+        "",
+        "# Project directory (mutagen syncs here)",
+        "mkdir -p $HOME/project",
+        "",
+        "# Cargo target dir in shell profile",
+        "cat >> $HOME/.bashrc << 'BASHRC_EOF'",
+        "",
+        "# Keep Linux cargo builds on local disk, separate from macOS shared mount",
+        'export CARGO_TARGET_DIR="$HOME/.cargo_target_linux"',
+        "BASHRC_EOF",
+    ]
+
+    if install_rust:
+        user_lines.extend([
+            "",
+            "# Install Rust toolchain",
+            "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
+            "source $HOME/.cargo/env",
+            "",
+            "# Install cargo-audit",
+            "cargo install cargo-audit",
+        ])
+
+    user_script = "\n".join(user_lines) + "\n"
+
+    # -- Build the Lima YAML --
+    config = {
+        "vmType": "vz",
+        "vmOpts": {
+            "vz": {
+                "rosetta": {
+                    "enabled": True,
+                    "binfmt": True,
+                },
+            },
+        },
+        "cpus": cpus,
+        "memory": memory,
+        "disk": disk,
+        "images": _images_for_os(os_name),
+        "mounts": [],
+        "provision": [
+            {"mode": "system", "script": system_script},
+            {"mode": "user", "script": user_script},
+        ],
+    }
+    return _yaml_dump(config)
+
+
+def _images_for_os(os_name):
+    """Return Lima image entries for the given OS."""
+    if os_name == "ubuntu":
+        return [
+            {
+                "location": "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img",
+                "arch": "x86_64",
+            },
+            {
+                "location": "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img",
+                "arch": "aarch64",
+            },
+        ]
+    # Default to Debian
+    return [
         {
-            "name": username,
-            "shell": default_shell,
-            "sudo": "ALL=(ALL) NOPASSWD:ALL",
-            "groups": "sudo",
+            "location": "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2",
+            "arch": "x86_64",
+        },
+        {
+            "location": "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-arm64.qcow2",
+            "arch": "aarch64",
         },
     ]
 
-    runcmd = [
-        f"mkdir -p /home/{username}/.cargo_target_linux",
-        f"chown -R {username}:{username} /home/{username}/.cargo_target_linux",
+
+def _shell_setup_system_lines(username):
+    """Return provision script lines for shell tool setup.
+
+    Lima's default user home is /home/<username>.guest.
+    System-level tools go to /usr/local, dotfiles go to the user's home.
+    """
+    home = f"/home/{username}.guest"
+    lines = [
+        "",
+        "# -- Shell setup --",
+        "",
+        "# Install starship prompt",
+        "curl -fsSL https://starship.rs/install.sh | sh -s -- -y",
+        "",
+        "# Install z (directory jumping)",
+        "mkdir -p /usr/local/share/z",
+        "curl -fsSL https://raw.githubusercontent.com/rupa/z/master/z.sh "
+        "-o /usr/local/share/z/z.sh",
+        "",
+        "# Install zsh-autosuggestions",
+        "mkdir -p /usr/local/share/zsh-autosuggestions",
+        "curl -fsSL https://raw.githubusercontent.com/zsh-users/zsh-autosuggestions/master/zsh-autosuggestions.zsh "
+        "-o /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh",
+        "",
+        "# Install eza",
+        "apt-get install -y -qq gpg",
+        "mkdir -p /etc/apt/keyrings",
+        "curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc "
+        "| gpg --dearmor -o /etc/apt/keyrings/gierens.gpg",
+        'echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] '
+        'http://deb.gierens.de stable main" '
+        "> /etc/apt/sources.list.d/gierens.list",
+        "apt-get update -qq",
+        "apt-get install -y -qq eza",
+        "",
+        f"# Set default shell to zsh",
+        f"chsh -s /usr/bin/zsh {username}",
+        "",
+        f"# Deploy dotfiles",
+        f"mkdir -p {home}/.config",
     ]
 
-    if mount_path:
-        mac_path = f"/mnt/mac{mount_path}"
-        runcmd.append(f"ln -sf {mac_path} /home/{username}/project")
-        runcmd.append(
-            f"chown -h {username}:{username} /home/{username}/project"
-        )
-
-    motd = MOTD_TEMPLATE.format(os=os_name)
-
-    write_files = [
-        {"path": "/etc/motd", "content": motd},
-    ]
-
-    config = {
-        "users": users,
-        "runcmd": runcmd,
-        "write_files": write_files,
+    dotfiles_map = {
+        ".zprofile": f"{home}/.zprofile",
+        ".zshrc": f"{home}/.zshrc",
+        ".direnvrc": f"{home}/.direnvrc",
+        ".tmux.conf": f"{home}/.tmux.conf",
+        "starship.toml": f"{home}/.config/starship.toml",
     }
-    return "#cloud-config\n" + _yaml_dump(config)
+    for src_name, dest_path in dotfiles_map.items():
+        content = _read_dotfile(src_name)
+        lines.extend([
+            f"cat > {dest_path} << 'DOTFILE_EOF'",
+            content.rstrip(),
+            "DOTFILE_EOF",
+        ])
+
+    lines.extend([
+        f"chown -R {username}:{username} {home}",
+    ])
+    return lines
 
 
 def _yaml_dump(data, indent=0):
-    """Minimal YAML serializer for cloud-init compatible output."""
+    """Minimal YAML serializer for Lima config output."""
     lines = []
     prefix = "  " * indent
 
     if isinstance(data, dict):
         for key, value in data.items():
-            if isinstance(value, (dict, list)):
+            if isinstance(value, list) and not value:
+                lines.append(f"{prefix}{key}: []")
+            elif isinstance(value, (dict, list)):
                 lines.append(f"{prefix}{key}:")
                 lines.append(_yaml_dump(value, indent + 1))
             elif isinstance(value, bool):
                 lines.append(f"{prefix}{key}: {'true' if value else 'false'}")
+            elif isinstance(value, str) and "\n" in value:
+                lines.append(f"{prefix}{key}: |")
+                for line in value.splitlines():
+                    lines.append(f"{prefix}  {line}")
             else:
                 lines.append(f"{prefix}{key}: {value}")
     elif isinstance(data, list):
@@ -75,18 +239,28 @@ def _yaml_dump(data, indent=0):
                 first = True
                 for key, value in item.items():
                     if first:
-                        if "\n" in str(value):
+                        if isinstance(value, str) and "\n" in value:
                             lines.append(f"{prefix}- {key}: |")
-                            for line in str(value).splitlines():
+                            for line in value.splitlines():
                                 lines.append(f"{prefix}    {line}")
+                        elif isinstance(value, (dict, list)):
+                            lines.append(f"{prefix}- {key}:")
+                            lines.append(_yaml_dump(value, indent + 2))
+                        elif isinstance(value, bool):
+                            lines.append(f"{prefix}- {key}: {'true' if value else 'false'}")
                         else:
                             lines.append(f"{prefix}- {key}: {value}")
                         first = False
                     else:
-                        if "\n" in str(value):
+                        if isinstance(value, str) and "\n" in value:
                             lines.append(f"{prefix}  {key}: |")
-                            for line in str(value).splitlines():
-                                lines.append(f"{prefix}      {line}")
+                            for line in value.splitlines():
+                                lines.append(f"{prefix}    {line}")
+                        elif isinstance(value, (dict, list)):
+                            lines.append(f"{prefix}  {key}:")
+                            lines.append(_yaml_dump(value, indent + 2))
+                        elif isinstance(value, bool):
+                            lines.append(f"{prefix}  {key}: {'true' if value else 'false'}")
                         else:
                             lines.append(f"{prefix}  {key}: {value}")
             else:

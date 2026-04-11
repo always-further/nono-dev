@@ -1,13 +1,13 @@
-"""Show OrbStack VM status."""
+"""Show Lima VM status."""
 
-from nono_dev import orbstack
+from nono_dev import lima
 
 
 def add_parser(subparsers):
-    parser = subparsers.add_parser("status", help="Show OrbStack VM status")
+    parser = subparsers.add_parser("status", help="Show Lima VM status")
     parser.set_defaults(func=run)
 
 
 def run(args):
-    orbstack.check_installed()
-    orbstack.list_vms()
+    lima.check_installed()
+    lima.list_vms()

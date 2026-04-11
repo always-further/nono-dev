@@ -1,10 +1,10 @@
 # Getting Started
 
-nono-dev is a CLI tool for the nono project's development team. It manages OrbStack Linux VMs for cross-compilation and provides sandboxed AI agent workflows for issue triage, bug fixing, PR review, and feature development.
+nono-dev is a CLI tool for the nono project's development team. It manages Lima Linux VMs for cross-compilation (with real ext4 for Landlock sandbox enforcement) and provides sandboxed AI agent workflows for issue triage, bug fixing, PR review, and feature development.
 
 ## Prerequisites
 
-- macOS with [OrbStack](https://orbstack.dev/) installed (for VM commands)
+- macOS with [Lima](https://lima-vm.io/) and [mutagen](https://mutagen.io/) installed (for VM commands): `brew install lima mutagen-io/mutagen/mutagen`
 - [nono](https://docs.nono.sh/cli/getting_started/installation) installed (for sandbox commands)
 - [GitHub CLI](https://cli.github.com/) (`gh`) installed and authenticated
 - Python 3.11+
@@ -134,7 +134,7 @@ source ~/.zshrc
 # Basic VM with Rust toolchain
 nono-dev vm create
 
-# With zsh, starship, eza, tmux, ripgrep, fzf
+# With zsh, starship, eza, bat, fd, ripgrep, direnv, fzf, tmux
 nono-dev vm create --shell-setup
 
 # Connect

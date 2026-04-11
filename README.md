@@ -6,14 +6,14 @@
 
 Development environment and sandboxed workflow manager for the [nono](https://github.com/always-further/nono) project. Provides two things:
 
-1. **OrbStack Linux VMs** with Rust build toolchains for cross-compilation on macOS.
+1. **Lima Linux VMs** with Rust build toolchains for cross-compilation on macOS (real ext4 filesystem for Landlock sandbox enforcement).
 2. **Sandboxed AI workflows** -- issue triage, bug fixing, PR review, and feature development, each isolated in a git worktree with [nono](https://docs.nono.sh) sandbox protections.
 
 See the [Documentation](https://always-further.github.io/nono-dev/) to get started!
 
 ## Prerequisites
 
-- macOS with [OrbStack](https://orbstack.dev/) (for VM commands)
+- macOS with [Lima](https://lima-vm.io/) and [mutagen](https://mutagen.io/) (for VM commands): `brew install lima mutagen-io/mutagen/mutagen`
 - [nono](https://docs.nono.sh/cli/getting_started/installation) (for sandbox commands)
 - [GitHub CLI](https://cli.github.com/) (`gh`) installed and authenticated
 - [Claude Code](https://claude.ai/code) CLI
@@ -70,12 +70,12 @@ nono-dev wt cleanup issue-123   # Remove a worktree and its branch
 nono-dev wt cleanup --all       # Remove all managed worktrees
 ```
 
-### OrbStack VMs
+### Lima VMs
 
 ```bash
-nono-dev vm create              # Create a Debian VM with Rust toolchain
-nono-dev vm create --shell-setup  # With zsh, starship, eza, tmux, ripgrep, fzf
-nono-dev vm connect             # SSH into the VM
+nono-dev vm create              # Create an Ubuntu VM with Rust toolchain
+nono-dev vm create --shell-setup  # With zsh, starship, eza, bat, fd, ripgrep, direnv, fzf
+nono-dev vm connect             # Shell into the VM
 nono-dev vm status              # List VMs
 nono-dev vm destroy             # Delete the VM
 ```
@@ -122,11 +122,12 @@ VMs created with `nono-dev vm create` include:
 - Rust toolchain (rustup) with cargo-audit
 - Build dependencies: build-essential, pkg-config, libssl-dev, cmake, git, curl
 - `CARGO_TARGET_DIR` set to `~/.cargo_target_linux` (avoids conflicts with macOS builds)
-- Project mounted at `~/project`
-- SSH agent forwarding
+- Project synced to `~/project` via mutagen (continuous, on ext4 for Landlock enforcement)
 
 With `--shell-setup`:
 
 - zsh with starship prompt (Nerd Font icons)
-- eza (ls replacement with icons), ripgrep, fzf, tmux, z
-- Pre-configured dotfiles (.zshrc, .tmux.conf, starship.toml)
+- Modern CLI tools: eza (ls), bat (cat), fd (find), ripgrep (grep), fzf, direnv, tmux, z
+- nono-dev shell aliases (`nd`, `ndf`, `nds`, `ndw`, etc.)
+- Per-directory environment via direnv with Rust/nono helpers (`.direnvrc`)
+- Pre-configured dotfiles (.zshrc, .direnvrc, .tmux.conf, starship.toml)
