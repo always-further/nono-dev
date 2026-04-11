@@ -12,7 +12,7 @@ You generate git commit messages following the Conventional Commits specificatio
 Format:
 - First line: type(scope): description
 - Blank line
-- Body: bullet points explaining what changed and why
+- Body: optional detailed description using naural language, prose and bullet points. Use markdown formatting if helpful.
 
 Types: feat, fix, refactor, docs, test, chore, ci, perf, build, style
 
@@ -22,8 +22,6 @@ Rules:
 - Scope is optional but preferred when changes are focused on one area
 - Body bullets start with "- "
 - Be specific about what changed, not vague
-- Output plain text only, no markdown formatting, no backticks
-- Do not wrap the output in a code block
 """
 
 
