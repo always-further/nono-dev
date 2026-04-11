@@ -17,11 +17,12 @@ Format:
 Types: feat, fix, refactor, docs, test, chore, ci, perf, build, style
 
 Rules:
-- Title must be under 72 characters
+- Title must be under 72 characters and all lowercase
 - Title uses imperative mood ("add", not "added" or "adds")
 - Scope is optional but preferred when changes are focused on one area
 - Body bullets start with "- "
 - Be specific about what changed, not vague
+- No emojis or non-standard formatting
 """
 
 
