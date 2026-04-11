@@ -4,7 +4,7 @@ nono-dev is a CLI tool for the nono project's development team. It manages Lima 
 
 ## Prerequisites
 
-- macOS with [Lima](https://lima-vm.io/) and [mutagen](https://mutagen.io/) installed (for VM commands): `brew install lima mutagen-io/mutagen/mutagen`
+- macOS with [Homebrew](https://brew.sh/) (Lima and mutagen are auto-installed when needed)
 - [nono](https://docs.nono.sh/cli/getting_started/installation) installed (for sandbox commands)
 - [GitHub CLI](https://cli.github.com/) (`gh`) installed and authenticated
 - Python 3.11+
@@ -127,6 +127,32 @@ After updating, restart your shell or run:
 ```bash
 source ~/.zshrc
 ```
+
+## Migrating from OrbStack to Lima
+
+nono-dev previously used OrbStack for VM management. VMs now use Lima with mutagen sync so files live on a real ext4 filesystem (required for Landlock sandbox enforcement).
+
+If you have an existing OrbStack VM, delete it and create a fresh Lima VM:
+
+```bash
+# 1. Delete the old OrbStack VM
+orb delete nono-dev
+
+# 2. Update nono-dev
+cd /path/to/nono-dev
+git pull
+nono-dev install --force
+nono-dev dotfiles
+source ~/.zshrc
+
+# 3. Create a new Lima VM (auto-installs Lima and mutagen via Homebrew)
+nono-dev vm create --shell-setup
+
+# 4. Connect
+nono-dev vm connect
+```
+
+You can uninstall OrbStack after confirming the new VM works.
 
 ## Setting Up a VM
 

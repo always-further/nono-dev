@@ -13,7 +13,7 @@ See the [Documentation](https://always-further.github.io/nono-dev/) to get start
 
 ## Prerequisites
 
-- macOS with [Lima](https://lima-vm.io/) and [mutagen](https://mutagen.io/) (for VM commands): `brew install lima mutagen-io/mutagen/mutagen`
+- macOS with [Homebrew](https://brew.sh/) (Lima and mutagen are auto-installed when needed)
 - [nono](https://docs.nono.sh/cli/getting_started/installation) (for sandbox commands)
 - [GitHub CLI](https://cli.github.com/) (`gh`) installed and authenticated
 - [Claude Code](https://claude.ai/code) CLI

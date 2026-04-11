@@ -7,26 +7,33 @@ import subprocess
 import sys
 
 
-def check_installed():
-    """Verify that limactl is available."""
-    if not shutil.which("limactl"):
+def _brew_install(formula, check_cmd=None):
+    """Install a Homebrew formula if the command is not already available."""
+    cmd = check_cmd or formula.split("/")[-1]
+    if shutil.which(cmd):
+        return
+    if not shutil.which("brew"):
         print(
-            "Error: 'limactl' command not found. Install Lima first:\n"
-            "  brew install lima",
+            f"Error: '{cmd}' not found and Homebrew is not installed.\n"
+            f"  Install Homebrew first: https://brew.sh",
             file=sys.stderr,
         )
         sys.exit(1)
+    print(f"Installing {formula} via Homebrew...")
+    result = subprocess.run(["brew", "install", formula])
+    if result.returncode != 0:
+        print(f"Error: failed to install {formula}.", file=sys.stderr)
+        sys.exit(1)
+
+
+def check_installed():
+    """Ensure limactl is available, installing via Homebrew if needed."""
+    _brew_install("lima", check_cmd="limactl")
 
 
 def check_mutagen_installed():
-    """Verify that mutagen is available."""
-    if not shutil.which("mutagen"):
-        print(
-            "Error: 'mutagen' command not found. Install mutagen first:\n"
-            "  brew install mutagen-io/mutagen/mutagen",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    """Ensure mutagen is available, installing via Homebrew if needed."""
+    _brew_install("mutagen-io/mutagen/mutagen", check_cmd="mutagen")
 
 
 def vm_exists(name):
