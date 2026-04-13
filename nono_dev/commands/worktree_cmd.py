@@ -20,6 +20,7 @@ def _wt_help(_args):
     print()
     print(f"    {style.value('wt list'):<35}    {style.dim('List managed worktrees')}")
     print(f"    {style.value('wt cd'):<35} {style.muted('<name>')}  {style.dim('Open a shell in a worktree')}")
+    print(f"    {style.value('wt start'):<35} {style.muted('<name>')}  {style.dim('Open a shell and start a sandbox')}")
     print(f"    {style.value('wt cleanup'):<35} {style.muted('<name|--all>')}  {style.dim('Remove worktrees and branches')}")
     print()
     import sys
@@ -40,6 +41,15 @@ def add_parser(subparsers):
     cd_parser = wt_sub.add_parser("cd", help="Open a shell in a worktree directory")
     cd_parser.add_argument("name", help="Worktree branch name, session name, or issue number")
     cd_parser.set_defaults(func=run_cd)
+
+    # wt start
+    start_parser = wt_sub.add_parser("start", help="Open a shell in a worktree and start a sandbox")
+    start_parser.add_argument("name", help="Worktree branch name, session name, or issue number")
+    start_parser.add_argument(
+        "--no-rollback", action="store_true",
+        help="Disable rollback snapshots for this session",
+    )
+    start_parser.set_defaults(func=run_start)
 
     # wt cleanup
     cleanup_parser = wt_sub.add_parser("cleanup", help="Remove worktrees and their branches")
@@ -194,6 +204,88 @@ def run_cd(args):
         print(f"Worktree path does not exist: {path}", file=sys.stderr)
         sys.exit(1)
 
+    print(path)
+
+
+def run_start(args):
+    """Resolve a worktree, start a sandbox in it, and print the path."""
+    nono.check_installed()
+    config = project_config.load()
+    managed, all_wts, _ = _get_managed_worktrees(config)
+    main_wt = [wt for wt in all_wts if wt not in managed]
+    all_candidates = managed + main_wt
+
+    try:
+        sessions = nono.ps_json(include_all=False)
+    except Exception:
+        sessions = []
+
+    path = _find_worktree_path(args.name, all_candidates, sessions)
+
+    if not path:
+        print(f"No worktree found matching '{args.name}'.", file=sys.stderr)
+        if managed:
+            print("\nAvailable worktrees:", file=sys.stderr)
+            for wt in managed:
+                branch = wt.get("branch", os.path.basename(wt["path"]))
+                print(f"  {branch}", file=sys.stderr)
+        sys.exit(1)
+
+    if not os.path.isdir(path):
+        print(f"Worktree path does not exist: {path}", file=sys.stderr)
+        sys.exit(1)
+
+    # Determine branch name from the resolved worktree
+    branch = None
+    for wt in all_candidates:
+        if wt.get("path") == path:
+            branch = wt.get("branch", os.path.basename(path))
+            break
+    if not branch:
+        branch = os.path.basename(path)
+
+    # Match session naming convention used by fix/feature commands
+    m = re.match(r"^issue-(\d+)$", branch)
+    if m:
+        session_name = f"fix-{m.group(1)}"
+    else:
+        session_name = f"feat-{branch}"
+
+    # Check if a session is already running for this worktree
+    for s in sessions:
+        if s.get("name") == session_name:
+            print(style.warning(f"Session '{session_name}' is already running."), file=sys.stderr)
+            print(f"  {style.label('Attach:')} {style.value('nono-dev sb attach ' + s.get('session_id', session_name))}", file=sys.stderr)
+            # Still print path so the shell function can cd
+            print(path)
+            return
+
+    prompt_path = project_config.get_prompt_path("feature", config)
+    rollback = project_config.get_rollback(config)
+    if args.no_rollback:
+        rollback["enabled"] = False
+
+    abs_path = os.path.abspath(path)
+    repo_root = config["_config_dir"]
+    git_dir = os.path.join(repo_root, ".git")
+    # Editable installs need read access to the nono-dev source tree
+    nono_dev_pkg = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    session_id = nono.run_detached(
+        session_name,
+        allows=[abs_path, git_dir],
+        reads=[repo_root, nono_dev_pkg],
+        allow_cwd=True,
+        system_prompt=prompt_path,
+        rollback=rollback,
+        workdir=abs_path,
+    )
+
+    print(style.success(f"Sandbox started in worktree '{branch}'"), file=sys.stderr)
+    print(f"  {style.label('Session:')}  {style.value(session_id)}", file=sys.stderr)
+    print(f"  {style.label('Attach:')}   {style.value('nono-dev sb attach ' + session_name)}", file=sys.stderr)
+
+    # Print path to stdout for the shell function to cd
     print(path)
 
 

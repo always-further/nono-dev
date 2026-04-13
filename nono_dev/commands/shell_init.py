@@ -20,6 +20,20 @@ wt() {
     fi
 }
 
+wts() {
+    if [ -z "$1" ]; then
+        echo "Usage: wts <name>" >&2
+        return 1
+    fi
+    local dir
+    dir="$(nono-dev wt start "$@" 2>/dev/tty)"
+    if [ $? -eq 0 ] && [ -n "$dir" ]; then
+        cd "$dir"
+    else
+        nono-dev wt start "$@"
+    fi
+}
+
 # nono-dev zsh completions
 if [ -n "$ZSH_VERSION" ]; then
     _nono_dev_complete() {
@@ -36,6 +50,7 @@ if [ -n "$ZSH_VERSION" ]; then
         _describe 'worktree' completions
     }
     compdef _wt_complete wt
+    compdef _wt_complete wts
 fi
 '''
 

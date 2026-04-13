@@ -12,12 +12,13 @@ docs = [
 
 [project.scripts]
 nono-dev = "nono_dev.cli:main"
+nd = "nono_dev.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["nono_dev*"]
 
 [tool.setuptools.package-data]
-"nono_dev" = ["prompts/*.md", "dotfiles/.*", "dotfiles/*.toml"]
+"nono_dev" = ["prompts/*.md", "dotfiles/.*", "dotfiles/*.toml", "profiles/*.json"]
 
 [build-system]
 requires = ["setuptools>=64"]

@@ -53,6 +53,7 @@ def _print_main_help():
     print(style.header("  Worktree Management") + style.dim("  (nono-dev wt ...)"))
     _help_row("wt list", "", "List managed worktrees")
     _help_row("wt cd", "<name>", "Open a shell in a worktree")
+    _help_row("wt start", "<name>", "Open a shell and start a sandbox")
     _help_row("wt cleanup", "<name|--all>", "Remove worktrees and branches")
     print()
 
