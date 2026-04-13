@@ -19,6 +19,67 @@ You are working on a fix for a GitHub issue in the nono project. You are operati
 10. Push the branch when the fix is ready, But confirm with the user first. 
 
 
+## Project Structure
+
+```
+crates/
+  nono/             # Core sandboxing library
+  nono-cli/         # CLI binary
+  │  src/           # ~50 source files
+  │  data/          # policy.json — built-in groups and profiles
+  │  tests/         # Rust unit/integration tests
+  nono-proxy/       # Network filtering proxy
+bindings/c/         # C FFI (nono-ffi)
+tests/
+  integration/      # Bash integration test scripts
+  run_integration_tests.sh
+```
+
+## Key Files by Bug Type
+
+| Bug type | File |
+|----------|------|
+| Policy / permission issues | `crates/nono-cli/data/policy.json` |
+| CLI flags / argument parsing | `crates/nono-cli/src/cli.rs` |
+| Sandbox enforcement behavior | `crates/nono/src/sandbox.rs` |
+| Capability definitions | `crates/nono-cli/src/capability_ext.rs` |
+| Session lifecycle (ps / stop / prune) | `crates/nono-cli/src/session_commands.rs` |
+| Execution strategy | `crates/nono-cli/src/exec_strategy.rs` |
+| PTY / interactive shell | `crates/nono-cli/src/pty_proxy.rs` |
+| Network proxy | `crates/nono-proxy/src/` |
+| Policy group introspection | `crates/nono-cli/src/policy_cmd.rs` |
+
+## policy.json Schema
+
+Policy groups live under the top-level `"groups"` key:
+
+```json
+"git_config": {
+  "description": "Read access to git configuration files",
+  "allow": {
+    "read": ["$HOME/.gitconfig", "$HOME/.config/git/ignore"],
+    "read_file": ["$HOME/.config/git/config"]
+  }
+}
+```
+
+Built-in profiles (e.g. `claude-code`, `codex`) reference groups by name under `"security": { "groups": [...] }`. When fixing policy bugs, check whether the affected path should be added to an existing group or warrants a new one.
+
+## Diagnostic Commands
+
+```bash
+nono policy groups <group>       # inspect a policy group's allow/deny rules
+nono policy profile <profile>    # inspect a built-in profile and its groups
+nono learn -- <command>          # trace what filesystem paths a command needs
+```
+
+## Common Bug Patterns
+
+- **Process introspection failures** — `/proc/self/*` denied under Landlock causes SIGABRT in some runtimes (e.g. Bun). Fix: add a `proc_self` read rule to the relevant profile/group.
+- **Landlock vs Seatbelt divergence** — Linux Landlock is stricter than macOS Seatbelt; a profile that works on macOS may fail on Linux. Reproduce on the correct platform before fixing.
+- **Network proxy connection drops** — First connection succeeds, subsequent ones fail silently. Usually a connection pool or keep-alive issue in `nono-proxy`.
+- **Environment variable loss** — Some runtimes re-exec themselves and lose inherited env vars inside the sandbox. Check `exec_strategy.rs` for env passthrough.
+
 ## Security Model
 
 The nono project is a security tool. Be especially careful about:
