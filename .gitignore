@@ -5,3 +5,5 @@ dist/
 build/
 .venv/
 uv.lock
+.DS_Store
+.claude/settings.local.json

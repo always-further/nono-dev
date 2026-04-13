@@ -6,7 +6,7 @@ import sys
 
 SHELL_FUNC = r'''
 # nono-dev shell integration
-wt() {
+nwt() {
     if [ -z "$1" ]; then
         nono-dev wt list
         return
@@ -20,9 +20,9 @@ wt() {
     fi
 }
 
-wts() {
+nwts() {
     if [ -z "$1" ]; then
-        echo "Usage: wts <name>" >&2
+        echo "Usage: nwts <name>" >&2
         return 1
     fi
     local dir
@@ -38,19 +38,19 @@ wts() {
 if [ -n "$ZSH_VERSION" ]; then
     _nono_dev_complete() {
         local -a completions
-        local words_str="${words[2,-1]}"
-        completions=(${(f)"$(nono-dev --complete $words_str 2>/dev/null)"})
+        completions=(${(f)"$(nono-dev --complete "${(@)words[2,$CURRENT]}" 2>/dev/null)"})
         _describe 'nono-dev' completions
     }
     compdef _nono_dev_complete nono-dev
+    compdef _nono_dev_complete nd
 
     _wt_complete() {
         local -a completions
-        completions=(${(f)"$(nono-dev --complete wt cd ${words[2]} 2>/dev/null)"})
+        completions=(${(f)"$(nono-dev --complete wt cd "${words[2]:-}" 2>/dev/null)"})
         _describe 'worktree' completions
     }
-    compdef _wt_complete wt
-    compdef _wt_complete wts
+    compdef _wt_complete nwt
+    compdef _wt_complete nwts
 fi
 '''
 

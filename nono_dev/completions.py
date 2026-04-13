@@ -29,18 +29,20 @@ def get_completions(words):
             return _session_names()
 
     if cmd == "wt":
-        subs = ["list", "cd", "cleanup"]
+        subs = ["list", "cd", "start", "cleanup"]
         if len(words) <= 2:
             prefix = words[1] if len(words) == 2 else ""
             return [s for s in subs if s.startswith(prefix)]
-        if words[1] in ("cd", "cleanup"):
+        if words[1] in ("cd", "start", "cleanup"):
             return _worktree_names()
 
     if cmd == "vm":
-        subs = ["create", "connect", "status", "destroy", "recreate"]
+        subs = ["create", "connect", "status", "mount", "destroy", "recreate"]
         if len(words) <= 2:
             prefix = words[1] if len(words) == 2 else ""
             return [s for s in subs if s.startswith(prefix)]
+        if words[1] in ("connect", "destroy", "recreate", "mount"):
+            return _vm_names()
 
     if cmd == "git":
         subs = ["commit"]
@@ -80,6 +82,25 @@ def _session_names():
                 names.append(s["name"])
             if s.get("session_id"):
                 names.append(s["session_id"][:6])
+        return names
+    except Exception:
+        return []
+
+
+def _vm_names():
+    """Get Lima VM names."""
+    try:
+        result = subprocess.run(
+            ["limactl", "list", "--json"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode != 0:
+            return []
+        names = []
+        for line in result.stdout.strip().splitlines():
+            vm = json.loads(line)
+            if vm.get("name"):
+                names.append(vm["name"])
         return names
     except Exception:
         return []

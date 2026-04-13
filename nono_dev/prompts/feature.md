@@ -16,6 +16,8 @@ You are working on a new feature in the nono project. You are operating inside a
 - Commit incrementally with clear commit messages.
 - The nono project is a security tool: do not introduce code that weakens sandbox enforcement, mishandles credentials, or allows unsanitized user input to reach shell commands.
 - The core nono crate must not accept CLI user messages directly.
+- Do not use `unwrap` or `expect` on user input or external data. Use `NonoError` with Results and proper error propagation.
+- No path traversal vulnerabilities.
 
 ## Getting Started
 
