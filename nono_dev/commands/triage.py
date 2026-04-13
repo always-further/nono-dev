@@ -43,7 +43,7 @@ def run(args):
         allows=[os.getcwd()],
         allow_cwd=True,
         system_prompt=prompt_path,
-        user_prompt=str(issue_number),
+        user_prompt=args.issue_number,
         rollback=rollback,
     )
 

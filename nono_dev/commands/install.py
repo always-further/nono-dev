@@ -61,6 +61,21 @@ def run(args):
     else:
         print(f"  {style.info('ok')}    nono-dev installed to ~/.local/bin/nono-dev")
 
+    # Install nono-dev sandbox profile
+    profile_src = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "profiles", "nono-dev.json",
+    )
+    profile_dst_dir = os.path.expanduser("~/.config/nono/profiles")
+    profile_dst = os.path.join(profile_dst_dir, "nono-dev.json")
+
+    if os.path.isfile(profile_src):
+        os.makedirs(profile_dst_dir, exist_ok=True)
+        shutil.copy2(profile_src, profile_dst)
+        print(f"  {style.info('ok')}    nono-dev profile installed to {profile_dst}")
+    else:
+        print(f"  {style.warning('warn')}  nono-dev profile not found in package")
+
     # Verify it's on PATH
     if shutil.which("nono-dev"):
         print(f"  {style.info('ok')}    nono-dev is on PATH")

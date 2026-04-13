@@ -4,7 +4,8 @@ import os
 import re
 import sys
 
-from nono_dev import nono, project_config, style, worktree
+from nono_dev import lima, nono, project_config, style, worktree
+from nono_dev.config import DEFAULT_VM_NAME
 from nono_dev.commands.sandbox_status import (
     _format_uptime,
     _parse_session_name,
@@ -285,8 +286,43 @@ def run_start(args):
     print(f"  {style.label('Session:')}  {style.value(session_id)}", file=sys.stderr)
     print(f"  {style.label('Attach:')}   {style.value('nono-dev sb attach ' + session_name)}", file=sys.stderr)
 
+    _check_vm_mount(abs_path)
+
     # Print path to stdout for the shell function to cd
     print(path)
+
+
+def _check_vm_mount(worktree_path):
+    """If the VM's mount doesn't match this worktree, offer to remount."""
+    vm_name = DEFAULT_VM_NAME
+    if not lima.vm_exists(vm_name):
+        return
+
+    info = lima.sync_info(vm_name)
+    if info is None:
+        print(f"  {style.label('VM mount:')} {style.muted('(no active sync)')}", file=sys.stderr)
+        return
+
+    host_path, guest_url = info
+    if os.path.realpath(host_path) == os.path.realpath(worktree_path):
+        print(f"  {style.label('VM mount:')} {style.value(host_path)} {style.muted('(matches)')}", file=sys.stderr)
+        return
+
+    print(f"  {style.label('VM mount:')} {style.warning(host_path)} {style.muted('(different worktree)')}", file=sys.stderr)
+    try:
+        answer = input(f"  Remount VM sync to '{worktree_path}'? [y/N]: ").strip().lower()
+    except EOFError:
+        answer = ""
+    if answer not in ("y", "yes"):
+        return
+
+    username = os.environ.get("USER", "dev")
+    guest_project = f"/home/{username}.guest/project"
+    print(f"  {style.muted('Stopping previous sync...')}", file=sys.stderr)
+    lima.stop_sync(vm_name)
+    print(f"  {style.muted('Starting sync of ')}{worktree_path}{style.muted(' -> ~/project...')}", file=sys.stderr)
+    lima.start_sync(vm_name, worktree_path, guest_project)
+    print(f"  {style.success('VM sync remounted.')}", file=sys.stderr)
 
 
 def run_cleanup(args):

@@ -21,7 +21,7 @@ def check_installed():
 def run_detached(
     name,
     *,
-    profile="claude-code",
+    profile="nono-dev",
     allows=None,
     reads=None,
     allow_cwd=False,
@@ -34,6 +34,15 @@ def run_detached(
 
     Returns the session ID parsed from nono's output.
     """
+    if profile == "nono-dev":
+        profile_path = os.path.expanduser("~/.config/nono/profiles/nono-dev.json")
+        if not os.path.isfile(profile_path):
+            print(
+                "nono-dev profile not installed. Run: nd install --force",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     cmd = ["nono", "run", "--detached", "--name", name, "--profile", profile]
 
     # Skip large directory trees during trust scan and rollback preflight
@@ -51,18 +60,6 @@ def run_detached(
 
     for path in reads or []:
         cmd.extend(["--read", path])
-
-    # Grant read access to gh CLI and git configs for GitHub operations
-    gh_config = os.path.expanduser("~/.config/gh")
-    if os.path.isdir(gh_config):
-        cmd.extend(["--read", gh_config])
-    for git_cfg in ["~/.gitconfig", "~/.gitconfig.local"]:
-        path = os.path.expanduser(git_cfg)
-        if os.path.exists(path):
-            cmd.extend(["--read-file", path])
-    ssh_dir = os.path.expanduser("~/.ssh")
-    if os.path.isdir(ssh_dir):
-        cmd.extend(["--read", ssh_dir])
 
     if allow_cwd:
         cmd.append("--allow-cwd")

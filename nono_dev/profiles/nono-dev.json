@@ -1,0 +1,21 @@
+{
+  "extends": "claude-code",
+  "meta": {
+    "name": "nono-dev",
+    "description": "Claude Code with nono-dev CLI, Lima VM access, and git/GitHub access"
+  },
+  "filesystem": {
+    "read": [
+      "$HOME/.lima",
+      "$HOME/.config/gh",
+      "$HOME/.ssh"
+    ],
+    "allow": [
+      "$HOME/.local/bin"
+    ],
+    "read_file": [
+      "$HOME/.gitconfig",
+      "$HOME/.gitconfig.local"
+    ]
+  }
+}

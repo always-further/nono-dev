@@ -29,4 +29,11 @@ def run(args):
         print(f"VM '{args.name}' is not running (status: {status}). Starting...")
         lima.start_vm(args.name)
 
+    info = lima.sync_info(args.name)
+    if info:
+        host_path, guest_url = info
+        print(f"Mount: {host_path} -> {guest_url}")
+    else:
+        print("Mount: (no active sync)")
+
     os.execvp("limactl", ["limactl", "shell", args.name])

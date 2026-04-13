@@ -23,6 +23,7 @@ from nono_dev.commands import (
     shell_init,
     stop,
     triage,
+    vm_exec,
     vm_status,
     worktree_cmd,
 )
@@ -64,6 +65,7 @@ def _print_main_help():
     print(style.header("  VM Management") + style.dim("  (nono-dev vm ...)"))
     _help_row("vm create", "[name]", "Create a development VM")
     _help_row("vm connect", "[name]", "Connect to a VM")
+    _help_row("vm exec", "[-m name] <cmd>", "Run a command in a VM via SSH")
     _help_row("vm status", "", "Show VM status")
     _help_row("vm mount", "[path]", "Show or switch the synced project directory")
     _help_row("vm destroy", "[name]", "Delete a VM")
@@ -136,6 +138,7 @@ def main():
     vm_parser.set_defaults(func=_print_group_help("vm", [
         ("create", "[name]", "Create a development VM"),
         ("connect", "[name]", "Connect to a VM"),
+        ("exec", "[-m name] <cmd>", "Run a command in a VM via SSH"),
         ("status", "", "Show VM status"),
         ("mount", "[path]", "Show or switch the synced project directory"),
         ("destroy", "[name]", "Delete a VM"),
@@ -144,6 +147,7 @@ def main():
     vm_sub = vm_parser.add_subparsers(dest="vm_command")
     create.add_parser(vm_sub)
     connect.add_parser(vm_sub)
+    vm_exec.add_parser(vm_sub)
     vm_status.add_parser(vm_sub)
     mount.add_parser(vm_sub)
     destroy.add_parser(vm_sub)
