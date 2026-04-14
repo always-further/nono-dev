@@ -4,12 +4,11 @@ import importlib.resources
 import os
 
 from nono_dev.config import (
-    BASE_PACKAGES,
     DEFAULT_CPUS,
     DEFAULT_DISK,
     DEFAULT_MEMORY,
+    DISTROS,
     MOTD_TEMPLATE,
-    SHELL_PACKAGES,
 )
 
 
@@ -38,11 +37,13 @@ def build_lima_config(
     memory = memory or DEFAULT_MEMORY
     disk = disk or DEFAULT_DISK
 
-    all_packages = list(BASE_PACKAGES)
+    distro = DISTROS[os_name]
+
+    all_packages = list(distro["base_packages"])
     if extra_packages:
         all_packages.extend(extra_packages)
     if shell_setup:
-        all_packages.extend(SHELL_PACKAGES)
+        all_packages.extend(distro["shell_packages"])
 
     # -- Build system provision script --
     # Lima auto-creates a user matching the macOS username with home at
@@ -52,8 +53,8 @@ def build_lima_config(
         "set -eux",
         "",
         "# Install packages",
-        "apt-get update -qq",
-        f"apt-get install -y -qq {' '.join(all_packages)}",
+        distro["update_cmd"],
+        f"{distro['install_cmd']} {' '.join(all_packages)}",
         "",
         "# MOTD",
         f"cat > /etc/motd << 'MOTD_EOF'",
@@ -62,7 +63,7 @@ def build_lima_config(
     ]
 
     if shell_setup:
-        system_lines.extend(_shell_setup_system_lines(username))
+        system_lines.extend(_shell_setup_system_lines(username, distro))
 
     system_script = "\n".join(system_lines) + "\n"
 
@@ -121,36 +122,21 @@ def build_lima_config(
             {"mode": "user", "script": user_script},
         ],
     }
+    if shell_setup:
+        config["user"] = {"shell": "/bin/zsh"}
     return _yaml_dump(config)
 
 
 def _images_for_os(os_name):
     """Return Lima image entries for the given OS."""
-    if os_name == "ubuntu":
-        return [
-            {
-                "location": "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img",
-                "arch": "x86_64",
-            },
-            {
-                "location": "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img",
-                "arch": "aarch64",
-            },
-        ]
-    # Default to Debian
-    return [
-        {
-            "location": "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2",
-            "arch": "x86_64",
-        },
-        {
-            "location": "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-arm64.qcow2",
-            "arch": "aarch64",
-        },
-    ]
+    distro = DISTROS[os_name]
+    images = []
+    for arch, url in distro["images"].items():
+        images.append({"location": url, "arch": arch})
+    return images
 
 
-def _shell_setup_system_lines(username):
+def _shell_setup_system_lines(username, distro):
     """Return provision script lines for shell tool setup.
 
     Lima's default user home is /home/<username>.guest.
@@ -173,24 +159,33 @@ def _shell_setup_system_lines(username):
         "mkdir -p /usr/local/share/zsh-autosuggestions",
         "curl -fsSL https://raw.githubusercontent.com/zsh-users/zsh-autosuggestions/master/zsh-autosuggestions.zsh "
         "-o /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh",
-        "",
-        "# Install eza",
-        "apt-get install -y -qq gpg",
-        "mkdir -p /etc/apt/keyrings",
-        "curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc "
-        "| gpg --dearmor -o /etc/apt/keyrings/gierens.gpg",
-        'echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] '
-        'http://deb.gierens.de stable main" '
-        "> /etc/apt/sources.list.d/gierens.list",
-        "apt-get update -qq",
-        "apt-get install -y -qq eza",
+    ]
+
+    # eza: only needs extra repo setup on apt-based distros
+    if distro["eza_setup"] == "apt":
+        lines.extend([
+            "",
+            "# Install eza",
+            "apt-get install -y -qq gpg",
+            "mkdir -p /etc/apt/keyrings",
+            "curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc "
+            "| gpg --dearmor -o /etc/apt/keyrings/gierens.gpg",
+            'echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] '
+            'http://deb.gierens.de stable main" '
+            "> /etc/apt/sources.list.d/gierens.list",
+            "apt-get update -qq",
+            "apt-get install -y -qq eza",
+        ])
+    # For distros with eza in their repos (e.g. Fedora), it's already in shell_packages
+
+    lines.extend([
         "",
         f"# Set default shell to zsh",
-        f"chsh -s /usr/bin/zsh {username}",
+        distro["shell_change_cmd"].format(username=username),
         "",
         f"# Deploy dotfiles",
         f"mkdir -p {home}/.config",
-    ]
+    ])
 
     dotfiles_map = {
         ".zprofile": f"{home}/.zprofile",

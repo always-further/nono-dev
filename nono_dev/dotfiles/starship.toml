@@ -14,6 +14,7 @@ $line_break\
 $character"""
 
 add_newline = true
+scan_timeout = 100
 
 [hostname]
 ssh_only = false

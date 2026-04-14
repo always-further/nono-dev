@@ -2,17 +2,18 @@
 
 from nono_dev import lima
 from nono_dev.commands import create
+from nono_dev.config import DEFAULT_OS, DEFAULT_VM_NAME, SUPPORTED_OS
 
 
 def add_parser(subparsers):
     parser = subparsers.add_parser("recreate", help="Destroy and recreate a VM")
     parser.add_argument(
-        "--os", dest="os_name", default="ubuntu",
-        choices=("debian", "ubuntu"),
-        help="Operating system (default: ubuntu)",
+        "--os", dest="os_name", default=DEFAULT_OS,
+        choices=SUPPORTED_OS,
+        help=f"Operating system (default: {DEFAULT_OS})",
     )
-    parser.add_argument("name", nargs="?", default="nono-dev", help="VM name")
-    parser.add_argument("--extras", default="", help="Extra apt packages")
+    parser.add_argument("name", nargs="?", default=DEFAULT_VM_NAME, help="VM name")
+    parser.add_argument("--extras", default="", help="Extra packages")
     parser.add_argument("--mount", default=None, help="Host directory to sync")
     parser.add_argument("--user", default=None, help="Username in the VM")
     parser.add_argument("--no-rust", action="store_true", help="Skip Rust installation")

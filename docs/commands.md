@@ -214,14 +214,14 @@ Requires `GEMINI_API_KEY` or `GOOGLE_API_KEY` set in your environment.
 Create a development VM.
 
 ```bash
-nono-dev vm create [--os {debian,ubuntu}] [name] [--extras PKG,PKG] [--mount PATH] [--user USER] [--no-rust] [--shell-setup]
+nono-dev vm create [--os {fedora,ubuntu,debian}] [name] [--extras PKG,PKG] [--mount PATH] [--user USER] [--no-rust] [--shell-setup]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--os` | `ubuntu` | Operating system |
+| `--os` | `fedora` | Operating system |
 | `name` | `nono-dev` | VM name |
-| `--extras` | none | Additional apt packages (comma-separated) |
+| `--extras` | none | Additional packages (comma-separated) |
 | `--mount` | current directory | Host directory to sync to `~/project` via mutagen |
 | `--user` | current macOS user | Username in the VM |
 | `--no-rust` | | Skip Rust/Cargo installation |

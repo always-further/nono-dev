@@ -5,14 +5,14 @@ import sys
 import tempfile
 
 from nono_dev import lima, template
-from nono_dev.config import DEFAULT_OS, DEFAULT_VM_NAME
+from nono_dev.config import DEFAULT_OS, DEFAULT_VM_NAME, SUPPORTED_OS
 
 
 def add_parser(subparsers):
     parser = subparsers.add_parser("create", help="Create a development VM")
     parser.add_argument(
         "--os", dest="os_name", default=DEFAULT_OS,
-        choices=("debian", "ubuntu"),
+        choices=SUPPORTED_OS,
         help=f"Operating system (default: {DEFAULT_OS})",
     )
     parser.add_argument(
@@ -21,7 +21,7 @@ def add_parser(subparsers):
     )
     parser.add_argument(
         "--extras", default="",
-        help="Comma-separated list of additional apt packages",
+        help="Comma-separated list of additional packages",
     )
     parser.add_argument(
         "--mount", default=None,
