@@ -1,5 +1,6 @@
 """Execute a command in a Lima VM via SSH."""
 
+import os
 import shlex
 import subprocess
 import sys
@@ -13,8 +14,8 @@ def add_parser(subparsers):
         "exec", help="Run a command in a VM via SSH",
     )
     parser.add_argument(
-        "-m", "--name", default=DEFAULT_VM_NAME,
-        help=f"VM name (default: {DEFAULT_VM_NAME})",
+        "-m", "--name", default=None,
+        help=f"VM name (default: auto-select if one exists, else {DEFAULT_VM_NAME})",
     )
     parser.add_argument(
         "--cwd", default="~/project",
@@ -28,17 +29,24 @@ def add_parser(subparsers):
 
 
 def run(args):
-    if not lima.vm_exists(args.name):
-        print(f"VM '{args.name}' does not exist.", file=sys.stderr)
-        print(f"Create one with: nd vm create {args.name}", file=sys.stderr)
+    lima.check_installed()
+    vm = lima.resolve_vm_name(args.name, DEFAULT_VM_NAME)
+
+    if lima.vm_status(vm) != "Running":
+        print(f"VM '{vm}' is not running.", file=sys.stderr)
         sys.exit(1)
 
-    if lima.vm_status(args.name) != "Running":
-        print(f"VM '{args.name}' is not running.", file=sys.stderr)
+    ssh_config = lima.ssh_config_path(vm)
+    if not os.path.isfile(ssh_config):
+        print(
+            f"Error: Lima SSH config not found at {ssh_config}. "
+            f"Start the VM with 'nd vm connect -m {vm}' first.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     quoted = " ".join(shlex.quote(c) for c in args.command)
     remote = f"cd {shlex.quote(args.cwd)} && {quoted}"
 
-    result = subprocess.run(["ssh", f"lima-{args.name}", remote])
+    result = subprocess.run(lima.ssh_argv(vm, remote))
     sys.exit(result.returncode)

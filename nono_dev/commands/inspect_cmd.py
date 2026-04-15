@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 import sys
 
 from nono_dev import nono, project_config, style, worktree
@@ -30,10 +29,9 @@ def _resolve_session(target, sessions):
         if s.get("name") == target:
             return s
 
-    # By branch name (issue-123 -> fix-123)
-    m = re.match(r"^issue-(\d+)$", target)
-    if m:
-        fix_name = f"fix-{m.group(1)}"
+    # By branch name (issue-N or <slug>-issue-N -> fix-[slug-]N)
+    fix_name = project_config.branch_to_fix_session(target)
+    if fix_name:
         for s in sessions:
             if s.get("name") == fix_name:
                 return s
@@ -56,13 +54,8 @@ def _resolve_session(target, sessions):
 def _get_worktree_info(session, config):
     """Get worktree details for a session."""
     name = session.get("name", "")
-
-    m = re.match(r"^fix-(\d+)$", name)
-    if m:
-        branch = f"issue-{m.group(1)}"
-    elif name.startswith("feat-"):
-        branch = name[5:]
-    else:
+    branch = project_config.session_name_to_branch(name)
+    if not branch:
         return None
 
     project_root = config["_config_dir"]

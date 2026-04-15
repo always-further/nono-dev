@@ -6,6 +6,8 @@ import sys
 
 SHELL_FUNC = r'''
 # nono-dev shell integration
+
+# nwt / nwts — always-available nono-dev worktree shortcuts.
 nwt() {
     if [ -z "$1" ]; then
         nono-dev wt list
@@ -34,6 +36,17 @@ nwts() {
     fi
 }
 
+# wt / wts — only installed if the user doesn't already have a `wt`
+# command (e.g. from worktrunk). Preserves the historical nono-dev
+# shortcut for users without a conflict, without clobbering the tool
+# that's already in PATH.
+if ! command -v wt >/dev/null 2>&1; then
+    wt() { nwt "$@"; }
+fi
+if ! command -v wts >/dev/null 2>&1; then
+    wts() { nwts "$@"; }
+fi
+
 # nono-dev zsh completions
 if [ -n "$ZSH_VERSION" ]; then
     _nono_dev_complete() {
@@ -51,6 +64,14 @@ if [ -n "$ZSH_VERSION" ]; then
     }
     compdef _wt_complete nwt
     compdef _wt_complete nwts
+    # Bind wt/wts completion only if our functions are in place
+    # (i.e., no conflicting tool took the name first).
+    if typeset -f wt >/dev/null 2>&1 && [[ "$(whence -w wt 2>/dev/null)" = *function* ]]; then
+        compdef _wt_complete wt
+    fi
+    if typeset -f wts >/dev/null 2>&1 && [[ "$(whence -w wts 2>/dev/null)" = *function* ]]; then
+        compdef _wt_complete wts
+    fi
 fi
 '''
 

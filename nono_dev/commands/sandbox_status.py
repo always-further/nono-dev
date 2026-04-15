@@ -18,24 +18,19 @@ def add_parser(subparsers):
 def _parse_session_name(name):
     """Parse a session name into (type, ref, worktree_branch).
 
-    Returns (type_str, ref_str, expected_branch_or_None).
+    Handles both same-repo (`fix-42`) and cross-repo (`fix-nono-py-42`)
+    naming conventions. Returns (type_str, ref_str, expected_branch_or_None).
     """
-    m = re.match(r"^fix-(\d+)$", name)
-    if m:
-        return "fix", f"#{m.group(1)}", f"issue-{m.group(1)}"
-
-    m = re.match(r"^triage-(\d+)$", name)
-    if m:
-        return "triage", f"#{m.group(1)}", None
-
-    m = re.match(r"^review-(\d+)$", name)
-    if m:
-        return "review", f"#{m.group(1)}", None
-
-    m = re.match(r"^feat-(.+)$", name)
-    if m:
-        return "feature", m.group(1), m.group(1)
-
+    kind, slug, ref = project_config.parse_session_name(name)
+    if kind == "fix":
+        issue_ref = f"{slug}#{ref}" if slug else f"#{ref}"
+        branch = f"{slug}-issue-{ref}" if slug else f"issue-{ref}"
+        return "fix", issue_ref, branch
+    if kind in ("triage", "review"):
+        issue_ref = f"{slug}#{ref}" if slug else f"#{ref}"
+        return kind, issue_ref, None
+    if kind == "feature":
+        return "feature", ref, ref
     return "session", "-", None
 
 

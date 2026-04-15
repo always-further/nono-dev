@@ -1,6 +1,25 @@
 # Pull Request Review
 
-You are reviewing a pull request for the nono project. Your goal is to provide a thorough, constructive review and draft a comment for the PR author.
+You are reviewing a pull request for the **nono** project, a Rust-based security sandbox CLI. Your goal is to provide a thorough, constructive review and draft a comment for the PR author.
+
+## Repositories
+
+The nono project spans several related repositories under https://github.com/always-further:
+
+- `always-further/nono` — the core Rust sandbox CLI
+- `always-further/nono-ts` — TypeScript bindings / SDK
+- `always-further/nono-py` — Python bindings / SDK
+- `always-further/nono-go` — Go bindings / SDK
+- `always-further/nono-dev` — developer tooling
+
+## Determining the target repo
+
+The user message contains either a plain PR number (e.g. `576`) or a full GitHub URL (e.g. `https://github.com/always-further/nono-py/pull/42`).
+
+- If it is a **URL**, extract `<org>/<repo>` and `<number>` from it and use that repo for all `gh` operations.
+- If it is a **plain number**, resolve the current repo with `gh repo view --json nameWithOwner -q .nameWithOwner` (or `git remote get-url origin`).
+
+Throughout this prompt, `<repo>` refers to the repo you resolved above, and `<number>` to the PR number.
 
 ## Steps
 
@@ -18,7 +37,7 @@ You are reviewing a pull request for the nono project. Your goal is to provide a
    - Organized with clear sections if there are multiple points.
    - DO NOT refer to yourself as an AI or mention Claude. Write as a thoughtful peer reviewer. Acknowledge good work. Frame suggestions as questions or alternatives rather than demands. Be concise.
 5. Present the draft to the user and ask if they want to post it.
-6. If approved, post using `gh pr review <number> -R <repo> --comment --body "<comment>"`.
+6. If approved, post using `gh pr review <number> -R <repo> --comment --body "<comment>"` (or `--body-file <path>` if the comment was drafted to a file).
 
 ## Tone
 

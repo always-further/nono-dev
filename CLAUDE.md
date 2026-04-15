@@ -14,43 +14,52 @@ nono-dev is a Python CLI tool for the nono project's development team. It provid
 ## Running
 
 ```bash
-# Install with uv/pip
+# Install with uv/pip (editable)
 uv sync
-nono-dev fix 123
+nono-dev install --force      # also copies the sandbox profile to ~/.config/nono/profiles/
+nono-dev fix 123              # or `nd fix 123` (alias)
 ```
 
 ## CLI Structure
 
-Commands are grouped under `vm`, `sb`, and `wt`:
+Commands are grouped under `vm`, `sb`, `wt`, and `git`:
 
 ```
 nono-dev triage|fix|review|feature   # Top-level workflow commands
-nono-dev vm create|connect|status|destroy|recreate
-nono-dev sb status|attach|stop|prune
-nono-dev wt list|cd|cleanup
-nono-dev shell-init
+nono-dev vm create|connect|exec|status|mount|destroy|recreate
+nono-dev sb status|attach|stop|prune|inspect
+nono-dev wt list|cd|start|cleanup
+nono-dev git commit
+nono-dev install|dotfiles|shell-init
 ```
+
+Two console scripts are registered (see `pyproject.toml`): `nono-dev` and the shorter alias `nd`. They resolve to the same entry point.
 
 ## Architecture
 
-- `nono_dev/cli.py` -- argparse entry point with nested subparsers (vm, sb, wt groups)
+- `nono_dev/cli.py` -- argparse entry point with nested subparsers (vm, sb, wt, git groups); early `--complete` handler for shell completion
 - `nono_dev/commands/` -- one module per subcommand. Each exposes `add_parser(subparsers)` and `run(args)`
-- `nono_dev/lima.py` -- thin subprocess wrapper around `limactl` CLI commands and mutagen sync
-- `nono_dev/nono.py` -- thin subprocess wrapper around `nono` CLI (run_detached, ps_json, attach)
+- `nono_dev/lima.py` -- thin subprocess wrapper around `limactl` and mutagen. Also provides `resolve_vm_name()` (auto-select logic) and `ssh_argv()` (builds `ssh -F <lima ssh.config>` invocations so we never mutate `~/.ssh/config` from exec paths).
+- `nono_dev/nono.py` -- thin subprocess wrapper around `nono` CLI (run_detached, ps_json, attach). Defaults `profile="nono-dev"` and auto-grants read on the nono-dev source tree so editable installs work from inside a sandbox.
 - `nono_dev/worktree.py` -- git worktree operations (add, list, remove, diff stats)
 - `nono_dev/project_config.py` -- parse `nono-dev.toml`, resolve prompts, repo detection from git remote
 - `nono_dev/template.py` -- builds Lima instance YAML programmatically (no PyYAML; uses a minimal `_yaml_dump` serializer)
-- `nono_dev/config.py` -- constants: default VM name, OS, base apt packages, VM resource defaults
-- `nono_dev/prompts/` -- shipped system prompt markdown files for each workflow command
-- `nono_dev/dotfiles/` -- shipped dotfiles for `--shell-setup` VMs (.zshrc, .tmux.conf, starship.toml)
+- `nono_dev/config.py` -- constants: default VM name, OS, base apt packages, VM resource defaults (default disk 80GiB)
+- `nono_dev/completions.py` -- pure-Python completion engine behind `nono-dev --complete` (top-level, session names, worktree names, VM names via `limactl list --json`, issue numbers)
+- `nono_dev/prompts/` -- shipped system prompt markdown files for each workflow command (triage/fix/review/feature)
+- `nono_dev/profiles/` -- shipped nono sandbox profile (`nono-dev.json`) copied to `~/.config/nono/profiles/` by `nono-dev install`
+- `nono_dev/dotfiles/` -- shipped dotfiles for `--shell-setup` VMs (.zshrc, .direnvrc, .tmux.conf, starship.toml)
 
 ### Sandbox workflow flow
 
 1. Load `nono-dev.toml` config (repo auto-detected from git remote if not set)
 2. For `fix`/`feature`: create a git worktree with `git worktree add`
-3. Build a `nono run --detached` command with sandbox permissions, system prompt, rollback
-4. Parse session ID from nono's stderr output
-5. User attaches later with `nono-dev sb attach`
+3. Build a `nono run --detached --profile nono-dev` command with sandbox permissions, system prompt, rollback
+4. `run_detached` auto-grants `--read` on the nono-dev source tree so the `nd` editable install can import inside the sandbox
+5. Parse session ID from nono's stderr output
+6. User attaches later with `nono-dev sb attach`
+
+The `nono-dev` sandbox profile (`nono_dev/profiles/nono-dev.json`) extends `claude-code` and adds read grants for `~/.lima`, `~/.config/gh`, `~/.ssh`, plus read-file access to `~/.gitconfig(.local)`. That's enough for a sandboxed agent to run `nd vm exec` (SSH into Lima VMs) and `gh` without further per-session plumbing.
 
 ### VM creation flow
 
@@ -78,3 +87,8 @@ Files live on ext4 inside the VM (not virtiofs) so Landlock can enforce sandbox 
 - Claude Code's `-p` flag means "print mode" (non-interactive), not "prompt" -- prompts are positional args
 - Worktree commands need `--allow .git/` (not just `.git/worktrees/`) for git commit operations
 - `fix`/`feature` grant `--read` on the main repo for Claude's Read/Edit tools to follow worktree symlinks
+- `nono.run_detached` always appends the nono-dev source dir to `--read` — an editable install of `nd` imports from there, so sandboxed agents would otherwise fail to run `nd` with a permission error
+- `nd vm exec` uses `ssh -F ~/.lima/<vm>/ssh.config lima-<vm>` — never modifies `~/.ssh/config` — so it works from inside a sandbox that only has the narrow `~/.lima` grant
+- Host-aliased SSH (`ssh lima-<vm>`) without `-F` is NOT safe to rely on — it only works if mutagen's `_ensure_ssh_include` has patched `~/.ssh/config` on that host, which isn't guaranteed
+- `lima.resolve_vm_name(name, default)` fails closed: an explicit name that doesn't exist errors rather than falling back (critical for destructive commands like `destroy`/`recreate`)
+- `vm mount` disambiguates its two positional args by shape: an arg starting with `/`, `~`, `./`, `../`, or containing a path separator / existing dir is treated as a path; otherwise it's a VM name. Use `-m <name>` to force VM interpretation.

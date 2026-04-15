@@ -43,6 +43,11 @@ def run_detached(
             )
             sys.exit(1)
 
+    # Editable installs of nono-dev import from this source tree. Grant read
+    # access so `nd` works from inside any sandbox session.
+    nono_dev_src = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    extra_reads = [nono_dev_src]
+
     cmd = ["nono", "run", "--detached", "--name", name, "--profile", profile]
 
     # Skip large directory trees during trust scan and rollback preflight
@@ -58,7 +63,7 @@ def run_detached(
     for path in allows or []:
         cmd.extend(["--allow", path])
 
-    for path in reads or []:
+    for path in (reads or []) + extra_reads:
         cmd.extend(["--read", path])
 
     if allow_cwd:

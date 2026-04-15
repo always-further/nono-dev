@@ -6,7 +6,7 @@ SUPPORTED_OS = ("debian", "ubuntu")
 
 DEFAULT_CPUS = 4
 DEFAULT_MEMORY = "8GiB"
-DEFAULT_DISK = "20GiB"
+DEFAULT_DISK = "80GiB"
 
 BASE_PACKAGES = [
     "build-essential",

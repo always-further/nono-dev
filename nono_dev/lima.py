@@ -144,6 +144,74 @@ def list_vms_json():
     return vms
 
 
+def ssh_config_path(vm_name):
+    """Absolute path to Lima's per-VM SSH config file."""
+    return os.path.expanduser(f"~/.lima/{vm_name}/ssh.config")
+
+
+def ssh_host(vm_name):
+    """The SSH host alias Lima defines inside its per-VM ssh.config."""
+    return f"lima-{vm_name}"
+
+
+def ssh_argv(vm_name, remote_command=None):
+    """Build an ssh argv for a VM using Lima's per-VM config directly.
+
+    Uses `-F <lima ssh.config>` so we don't depend on the user's
+    `~/.ssh/config` having been patched with an `Include` line. This
+    works even on hosts that have never started a mutagen sync.
+    """
+    argv = ["ssh", "-F", ssh_config_path(vm_name), ssh_host(vm_name)]
+    if remote_command is not None:
+        argv.append(remote_command)
+    return argv
+
+
+def resolve_vm_name(name, default):
+    """Resolve the target VM name.
+
+    - If `name` is given explicitly and that VM exists, use it.
+    - If `name` is given explicitly and that VM does NOT exist, error
+      (never silently fall back — destructive commands must fail closed).
+    - If `name` is not given (None/empty), auto-select: prefer `default`
+      if it exists, else the sole VM if exactly one exists, else error.
+    """
+    try:
+        vms = list_vms_json()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        vms = []
+    vm_names = [v["name"] for v in vms if v.get("name")]
+
+    # Explicit name — must exist. No fallback.
+    if name:
+        if name in vm_names:
+            return name
+        available = ", ".join(vm_names) if vm_names else "(none)"
+        print(
+            f"Error: VM '{name}' does not exist. Available: {available}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # No explicit name — auto-select.
+    if default in vm_names:
+        return default
+
+    if len(vm_names) == 1:
+        return vm_names[0]
+
+    if not vm_names:
+        print("Error: no Lima VMs exist. Create one with: nd vm create", file=sys.stderr)
+        sys.exit(1)
+
+    print(
+        f"Error: multiple VMs exist, specify one with --name/-m.\n"
+        f"       Available: {', '.join(vm_names)}",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
 # -- Mutagen sync helpers --
 
 def _sync_session_name(vm_name):
@@ -240,12 +308,20 @@ def sync_info(vm_name):
         return None
 
     alpha = beta = None
+    section = None
     for line in result.stdout.splitlines():
         stripped = line.strip()
-        if stripped.startswith("Alpha:"):
-            alpha = stripped.split(":", 1)[1].strip()
-        elif stripped.startswith("Beta:"):
-            beta = stripped.split(":", 1)[1].strip()
+        if stripped == "Alpha:":
+            section = "alpha"
+        elif stripped == "Beta:":
+            section = "beta"
+        elif stripped.startswith("URL:") and section in ("alpha", "beta"):
+            url = stripped.split(":", 1)[1].strip()
+            if section == "alpha":
+                alpha = url
+            else:
+                beta = url
+            section = None  # consume URL once per section
     if alpha and beta:
         return (alpha, beta)
     return None

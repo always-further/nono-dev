@@ -22,14 +22,15 @@ def add_parser(subparsers):
 def run(args):
     nono.check_installed()
     config = project_config.load()
-    issue_number = project_config.parse_github_ref(args.issue_number)
+    url_repo, issue_number = project_config.parse_github_ref_full(args.issue_number)
     repo = project_config.get_repo(config)
     prompt_path = project_config.get_prompt_path("triage", config)
     rollback = project_config.get_rollback(config)
     if args.no_rollback:
         rollback["enabled"] = False
 
-    session_name = f"triage-{issue_number}"
+    slug = project_config.namespace_slug(url_repo, repo)
+    session_name = f"triage-{slug}-{issue_number}" if slug else f"triage-{issue_number}"
 
     sessions = nono.ps_json(include_all=False)
     for s in sessions:

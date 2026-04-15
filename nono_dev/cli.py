@@ -67,7 +67,7 @@ def _print_main_help():
     _help_row("vm connect", "[name]", "Connect to a VM")
     _help_row("vm exec", "[-m name] <cmd>", "Run a command in a VM via SSH")
     _help_row("vm status", "", "Show VM status")
-    _help_row("vm mount", "[path]", "Show or switch the synced project directory")
+    _help_row("vm mount", "[vm] [path]", "Show or switch the synced project directory")
     _help_row("vm destroy", "[name]", "Delete a VM")
     _help_row("vm recreate", "[name]", "Destroy and recreate a VM")
     print()
@@ -140,7 +140,7 @@ def main():
         ("connect", "[name]", "Connect to a VM"),
         ("exec", "[-m name] <cmd>", "Run a command in a VM via SSH"),
         ("status", "", "Show VM status"),
-        ("mount", "[path]", "Show or switch the synced project directory"),
+        ("mount", "[vm] [path]", "Show or switch the synced project directory"),
         ("destroy", "[name]", "Delete a VM"),
         ("recreate", "[name]", "Destroy and recreate a VM"),
     ]))

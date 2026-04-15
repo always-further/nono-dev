@@ -150,10 +150,16 @@ def run_list(_args):
         branch = wt.get("branch", os.path.basename(wt["path"]))
         rel_path = os.path.relpath(wt["path"], project_root)
 
-        # Derive type and issue/PR from branch name
+        # Derive type and issue/PR from branch name.
+        # Matches same-repo (`issue-N`) and cross-repo (`xrepo-<slug>-issue-N`)
+        # fix branches. The reserved `xrepo-` prefix keeps user-chosen
+        # branches like `docs-issue-42` from being misclassified.
         m = re.match(r"^issue-(\d+)$", branch)
         if m:
             wt_type, ref = "fix", f"#{m.group(1)}"
+        elif (m := re.match(r"^xrepo-(.+)-issue-(\d+)$", branch)):
+            slug, number = m.groups()
+            wt_type, ref = "fix", f"{slug}#{number}"
         else:
             wt_type, ref = "feature", branch
 
@@ -245,12 +251,10 @@ def run_start(args):
     if not branch:
         branch = os.path.basename(path)
 
-    # Match session naming convention used by fix/feature commands
-    m = re.match(r"^issue-(\d+)$", branch)
-    if m:
-        session_name = f"fix-{m.group(1)}"
-    else:
-        session_name = f"feat-{branch}"
+    # Match session naming convention used by fix/feature commands,
+    # including cross-repo fix branches like `nono-py-issue-42`.
+    fix_session = project_config.branch_to_fix_session(branch)
+    session_name = fix_session if fix_session else f"feat-{branch}"
 
     # Check if a session is already running for this worktree
     for s in sessions:
@@ -269,13 +273,10 @@ def run_start(args):
     abs_path = os.path.abspath(path)
     repo_root = config["_config_dir"]
     git_dir = os.path.join(repo_root, ".git")
-    # Editable installs need read access to the nono-dev source tree
-    nono_dev_pkg = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
     session_id = nono.run_detached(
         session_name,
         allows=[abs_path, git_dir],
-        reads=[repo_root, nono_dev_pkg],
+        reads=[repo_root],
         allow_cwd=True,
         system_prompt=prompt_path,
         rollback=rollback,
@@ -294,9 +295,17 @@ def run_start(args):
 
 def _check_vm_mount(worktree_path):
     """If the VM's mount doesn't match this worktree, offer to remount."""
-    vm_name = DEFAULT_VM_NAME
-    if not lima.vm_exists(vm_name):
+    try:
+        vms = lima.list_vms_json()
+    except Exception:
         return
+    vm_names = [v["name"] for v in vms if v.get("name")]
+    if DEFAULT_VM_NAME in vm_names:
+        vm_name = DEFAULT_VM_NAME
+    elif len(vm_names) == 1:
+        vm_name = vm_names[0]
+    else:
+        return  # multiple or none — don't guess
 
     info = lima.sync_info(vm_name)
     if info is None:

@@ -1,6 +1,27 @@
 # Issue Fix
 
-You are working on a fix for a GitHub issue in the nono project. You are operating inside a dedicated git worktree with sandbox protections.
+You are working on a fix for a GitHub issue in the **nono** project, a Rust-based security sandbox CLI. You are operating inside a dedicated git worktree with sandbox protections.
+
+## Repositories
+
+The nono project spans several related repositories under https://github.com/always-further:
+
+- `always-further/nono` — the core Rust sandbox CLI
+- `always-further/nono-ts` — TypeScript bindings / SDK
+- `always-further/nono-py` — Python bindings / SDK
+- `always-further/nono-go` — Go bindings / SDK
+- `always-further/nono-dev` — developer tooling (this workflow lives here)
+
+Bugs can affect sibling repos; search and cross-link where relevant.
+
+## Determining the target repo
+
+The user message contains either a plain issue number (e.g. `576`) or a full GitHub URL (e.g. `https://github.com/always-further/nono-py/issues/42`).
+
+- If it is a **URL**, extract `<org>/<repo>` and `<number>` from it and use that repo for all `gh` operations.
+- If it is a **plain number**, resolve the current worktree's repo with `gh repo view --json nameWithOwner -q .nameWithOwner` (or `git remote get-url origin`).
+
+Throughout this prompt, `<repo>` refers to the repo you resolved above, and `<number>` to the issue number.
 
 ## Steps
 

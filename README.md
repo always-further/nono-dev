@@ -25,13 +25,21 @@ See the [Documentation](https://always-further.github.io/nono-dev/) to get start
 git clone https://github.com/always-further/nono-dev.git
 cd nono-dev
 uv sync
+nono-dev install --force       # registers the `nono-dev` nono sandbox profile
+                               # and installs the `nono-dev` / `nd` commands globally
 ```
 
-Optional shell integration (enables the `wt` function for changing into worktrees):
+Optional shell integration (enables tab completion and the `wt` / `wts` shorthand functions for changing into worktrees and starting sandbox sessions):
 
 ```bash
+nono-dev shell-init --install  # appends eval to ~/.zshrc (idempotent)
+# or manually:
 echo 'eval "$(nono-dev shell-init)"' >> ~/.zshrc
 ```
+
+If you already have a `wt` command (e.g. from [Worktrunk](https://github.com/foresightpublishing/worktrunk)), nono-dev's helpers are available as `nwt` / `nwts` so nothing clobbers your existing tool.
+
+Everywhere below, `nono-dev` and `nd` are interchangeable.
 
 ## Quick Start
 
@@ -64,23 +72,38 @@ nono-dev sb stop review-456     # Stop a session
 ### Worktree management
 
 ```bash
-nono-dev wt list                # List managed worktrees
-wt issue-123                    # cd into a worktree (requires shell-init)
-nono-dev wt cleanup issue-123   # Remove a worktree and its branch
-nono-dev wt cleanup --all       # Remove all managed worktrees
+nono-dev wt list                  # List managed worktrees
+nono-dev wt cd issue-123          # Print the worktree path (use `wt` shortcut to cd)
+nono-dev wt start issue-123       # Open a worktree AND start a sandbox session
+nono-dev wt cleanup issue-123     # Remove a worktree and its branch
+nono-dev wt cleanup --all         # Remove all managed worktrees
+```
+
+With shell-init loaded:
+
+```bash
+wt issue-123                      # cd into a worktree
+wts issue-123                     # cd in AND start a sandbox (== nwts if wt is taken)
 ```
 
 ### Lima VMs
 
 ```bash
-nono-dev vm create              # Create an Ubuntu VM with Rust toolchain
+nono-dev vm create                # Ubuntu VM (80 GiB disk by default)
 nono-dev vm create --shell-setup  # With zsh, starship, eza, bat, fd, ripgrep, direnv, fzf
-nono-dev vm connect             # Shell into the VM
-nono-dev vm status              # List VMs
-nono-dev vm mount               # Show what's currently synced
-nono-dev vm mount /path/to/repo # Switch to a different project
-nono-dev vm destroy             # Delete the VM
+nono-dev vm create --disk 120GiB --cpus 8 --memory 16GiB  # Custom resources
+nono-dev vm connect               # Shell into the (only / default) VM
+nono-dev vm status                # List VMs
+nono-dev vm exec -- uname -a      # Run a command in the VM via SSH
+nono-dev vm mount                 # Show what's currently synced
+nono-dev vm mount /path/to/repo   # Switch default VM's sync to that path
+nono-dev vm mount linux-gpu /path/to/repo  # Target a specific VM
+nono-dev vm destroy               # Delete the VM
 ```
+
+`connect`, `exec`, `mount`, and `destroy` auto-select a VM if only one exists, and accept `-m <name>` / `--name <name>` as an alias for the positional name. Explicit names that don't exist fail with an error — they never silently fall back to a different VM.
+
+`recreate` deliberately does not auto-select: to avoid destroying the wrong VM, an omitted name always resolves to the default (`nono-dev`), never to an unrelated sole VM.
 
 ## Configuration
 
@@ -102,20 +125,22 @@ See [Configuration docs](docs/configuration.md) for all options.
 ## CLI Reference
 
 ```
-nono-dev triage <issue>           Triage a GitHub issue
-nono-dev fix <issue>              Fix a GitHub issue in a worktree
-nono-dev review <pr>              Review a GitHub PR
-nono-dev feature <branch>         Start a feature in a worktree
+nono-dev triage <issue>            Triage a GitHub issue (drafts local .md for review)
+nono-dev fix <issue>               Fix a GitHub issue in a sandboxed worktree
+nono-dev review <pr>               Review a GitHub PR
+nono-dev feature <branch>          Start a feature in a sandboxed worktree
 
-nono-dev vm create|connect|status|mount|destroy|recreate
+nono-dev vm create|connect|exec|status|mount|destroy|recreate
 nono-dev sb status|attach|stop|prune
-nono-dev wt list|cd|cleanup
-nono-dev git commit               AI-generated conventional commit
+nono-dev wt list|cd|start|cleanup
+nono-dev git commit                AI-generated conventional commit
 
-nono-dev shell-init               Print shell functions for .zshrc
+nono-dev install [--force]         Install `nono-dev` / `nd` + sandbox profile
+nono-dev dotfiles                  Write shipped dotfiles to ~
+nono-dev shell-init [--install]    Print (or install) shell integration
 ```
 
-Issues and PRs accept both numbers (`123`) and GitHub URLs.
+Issues and PRs accept both numbers (`123`) and GitHub URLs. Sibling repos (`nono`, `nono-ts`, `nono-py`, `nono-go`, `nono-dev`) are recognised automatically from URLs; plain numbers default to the current repo's git remote.
 
 ## VM Environment
 

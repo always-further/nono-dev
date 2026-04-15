@@ -22,14 +22,15 @@ def add_parser(subparsers):
 def run(args):
     nono.check_installed()
     config = project_config.load()
-    pr_number = project_config.parse_github_ref(args.pr_number)
+    url_repo, pr_number = project_config.parse_github_ref_full(args.pr_number)
     repo = project_config.get_repo(config)
     prompt_path = project_config.get_prompt_path("review", config)
     rollback = project_config.get_rollback(config)
     if args.no_rollback:
         rollback["enabled"] = False
 
-    session_name = f"review-{pr_number}"
+    slug = project_config.namespace_slug(url_repo, repo)
+    session_name = f"review-{slug}-{pr_number}" if slug else f"review-{pr_number}"
 
     sessions = nono.ps_json(include_all=False)
     for s in sessions:
@@ -43,7 +44,7 @@ def run(args):
         allows=[os.getcwd()],
         allow_cwd=True,
         system_prompt=prompt_path,
-        user_prompt=str(pr_number),
+        user_prompt=args.pr_number,
         rollback=rollback,
     )
 

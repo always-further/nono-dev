@@ -5,7 +5,7 @@ import sys
 import tempfile
 
 from nono_dev import lima, template
-from nono_dev.config import DEFAULT_OS, DEFAULT_VM_NAME
+from nono_dev.config import DEFAULT_CPUS, DEFAULT_DISK, DEFAULT_MEMORY, DEFAULT_OS, DEFAULT_VM_NAME
 
 
 def add_parser(subparsers):
@@ -39,6 +39,18 @@ def add_parser(subparsers):
         "--shell-setup", action="store_true",
         help="Install zsh, starship, tmux, ripgrep, fzf, zsh-autosuggestions and configure dotfiles",
     )
+    parser.add_argument(
+        "--disk", default=DEFAULT_DISK,
+        help=f"VM disk size, e.g. 40GiB / 80GiB (default: {DEFAULT_DISK})",
+    )
+    parser.add_argument(
+        "--cpus", type=int, default=DEFAULT_CPUS,
+        help=f"VM CPU count (default: {DEFAULT_CPUS})",
+    )
+    parser.add_argument(
+        "--memory", default=DEFAULT_MEMORY,
+        help=f"VM memory, e.g. 8GiB / 16GiB (default: {DEFAULT_MEMORY})",
+    )
     parser.set_defaults(func=run)
 
 
@@ -70,6 +82,9 @@ def run(args):
         extra_packages=extra_packages,
         install_rust=not args.no_rust,
         shell_setup=args.shell_setup,
+        disk=args.disk,
+        cpus=args.cpus,
+        memory=args.memory,
     )
 
     with tempfile.NamedTemporaryFile(

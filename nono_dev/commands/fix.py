@@ -22,7 +22,7 @@ def add_parser(subparsers):
 def run(args):
     nono.check_installed()
     config = project_config.load()
-    issue_number = project_config.parse_github_ref(args.issue_number)
+    url_repo, issue_number = project_config.parse_github_ref_full(args.issue_number)
     repo = project_config.get_repo(config)
     prompt_path = project_config.get_prompt_path("fix", config)
     rollback = project_config.get_rollback(config)
@@ -30,9 +30,25 @@ def run(args):
         rollback["enabled"] = False
     wt_dir = project_config.get_worktree_dir(config)
 
-    branch = f"issue-{issue_number}"
+    # When a URL points at a sibling repo, namespace branch/worktree/session
+    # so that e.g. nono#42 and nono-py#42 don't collide. Cross-repo branches
+    # use the reserved `xrepo-` prefix so user-chosen branches like
+    # `docs-issue-42` stay classified as feature branches.
+    slug = project_config.namespace_slug(url_repo, repo)
+    if slug:
+        branch = f"xrepo-{slug}-issue-{issue_number}"
+        session_name = f"fix-{slug}-{issue_number}"
+    else:
+        branch = f"issue-{issue_number}"
+        session_name = f"fix-{issue_number}"
     wt_path = os.path.join(wt_dir, branch)
-    session_name = f"fix-{issue_number}"
+
+    if slug:
+        print(style.warning(
+            f"Issue is in '{url_repo}' but this worktree lives in '{repo}'. "
+            f"Creating branch '{branch}' here — you may want to cd into "
+            f"the '{url_repo}' checkout instead."
+        ))
 
     sessions = nono.ps_json(include_all=False)
     for s in sessions:
@@ -64,7 +80,7 @@ def run(args):
         reads=[repo_root],
         allow_cwd=True,
         system_prompt=prompt_path,
-        user_prompt=str(issue_number),
+        user_prompt=args.issue_number,
         rollback=rollback,
         workdir=abs_path,
     )
