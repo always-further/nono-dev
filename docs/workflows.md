@@ -1,6 +1,6 @@
 # Workflows
 
-nono-dev combines git worktrees with nono sandbox to give each task an isolated workspace and a sandboxed AI agent. All agent sessions run detached -- they continue working in the background while you do other things.
+nono-dev combines git worktrees with nono sandbox to give each task an isolated workspace and a sandboxed AI agent. When you want to work directly in your current checkout, `bare` skips worktree creation. All agent sessions run detached -- they continue working in the background while you do other things.
 
 ## Issue Triage
 
@@ -25,7 +25,7 @@ End-to-end: from issue to a branch with a fix ready for review.
 nono-dev fix 123
 
 # Check progress
-nono-dev sb status
+nono-dev sb list
 
 # Attach to guide the agent or review the fix
 nono-dev sb attach 123
@@ -72,6 +72,22 @@ nono-dev sb attach auth-improvements
 
 The agent has write access only to the worktree at `.worktrees/auth-improvements`, keeping your main checkout untouched.
 
+## Bare Session
+
+Start an interactive sandbox directly in the current checkout:
+
+```bash
+nono-dev bare api-spike
+```
+
+Attach and direct the work:
+
+```bash
+nono-dev sb attach api-spike
+```
+
+Use this when you want sandboxing and rollback, but do not want a branch or worktree created up front.
+
 ## Parallel Work
 
 Run multiple tasks simultaneously. Each gets its own worktree and sandbox:
@@ -81,19 +97,21 @@ nono-dev fix 101
 nono-dev fix 102
 nono-dev review 200
 nono-dev feature new-api
+nono-dev bare api-spike
 ```
 
 Monitor everything from one place:
 
 ```bash
-nono-dev sb status
+nono-dev sb list
 ```
 
 ```
 NAME              PATH                    TYPE    ISSUE/PR  SESSION  STATUS   ATTACH    AGE    CHANGES
 issue-101         .worktrees/issue-101    fix     #101      82984b   running  detached  1h     +34 -12
 issue-102         .worktrees/issue-102    fix     #102      a1b2c3   running  detached  45m    +0 -0
-new-api           .worktrees/new-api      feature -         d4e5f6   running  detached  30m    +15 -3
+new-api           .worktrees/new-api      feature new-api   d4e5f6   running  detached  30m    +15 -3
+bare-api-spike    .                       bare    api-spike e7f8a9   running  detached  12m    +3 -1
 review-200        -                       review  #200      f7a8b9   running  detached  20m    -
 ```
 

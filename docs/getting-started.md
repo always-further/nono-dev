@@ -1,6 +1,6 @@
 # Getting Started
 
-nono-dev is a CLI tool for the nono project's development team. It manages Lima Linux VMs for cross-compilation (with real ext4 for Landlock sandbox enforcement) and provides sandboxed AI agent workflows for issue triage, bug fixing, PR review, and feature development.
+nono-dev is a CLI tool for the nono project's development team. It manages Lima Linux VMs for cross-compilation (with real ext4 for Landlock sandbox enforcement) and provides sandboxed AI agent workflows for issue triage, bug fixing, PR review, feature development in worktrees, and direct current-checkout sessions.
 
 ## Prerequisites
 
@@ -93,10 +93,18 @@ nono-dev feature my-new-feature
 
 Creates a worktree and branch, then spawns an agent you can direct interactively.
 
+### Start in the current checkout
+
+```bash
+nono-dev bare api-spike
+```
+
+Starts a sandboxed Claude session directly in the current checkout, with no worktree creation. Use this when you explicitly want the agent operating in-place.
+
 ## Checking Status
 
 ```bash
-nono-dev sb status
+nono-dev sb list
 ```
 
 Shows a dashboard of all worktrees and active sessions:
@@ -105,7 +113,8 @@ Shows a dashboard of all worktrees and active sessions:
 NAME              PATH                    TYPE    ISSUE/PR  SESSION  STATUS   ATTACH    AGE    CHANGES
 issue-42          .worktrees/issue-42     fix     #42       82984b   running  detached  2h30m  +34 -12
 issue-123         .worktrees/issue-123    fix     #123      a1b2c3   running  attached  15m    +0 -0
-my-new-feature    .worktrees/my-feature   feature -         d4e5f6   running  detached  1h     +15 -3
+my-new-feature    .worktrees/my-feature   feature my-new-feature d4e5f6 running detached  1h  +15 -3
+bare-api-spike    .                       bare    api-spike e7f8a9   running  detached  12m    +3 -1
 triage-42         -                       triage  #42       f7a8b9   running  detached  5m     -
 ```
 

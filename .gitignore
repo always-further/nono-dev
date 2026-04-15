@@ -5,3 +5,5 @@ dist/
 build/
 .venv/
 uv.lock
+!nono_dev/prompts/
+!nono_dev/prompts/*.md

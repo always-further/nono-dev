@@ -19,3 +19,4 @@ enabled = false                    # enable nono rollback snapshots (default: fa
 # fix = "prompts/fix.md"
 # review = "prompts/review.md"
 # feature = "prompts/feature.md"
+# bare = "prompts/bare.md"

@@ -6,6 +6,7 @@ import sys
 from nono_dev import __version__, style
 from nono_dev.commands import (
     attach,
+    bare,
     connect,
     create,
     destroy,
@@ -40,6 +41,7 @@ def _print_main_help():
     _help_row("fix", "<issue>", "Fix a GitHub issue in a sandboxed worktree")
     _help_row("review", "<pr>", "Review a GitHub PR with a sandboxed agent")
     _help_row("feature", "<branch>", "Start a new feature in a sandboxed worktree")
+    _help_row("bare", "[name]", "Start a sandboxed Claude session in the current checkout")
     print()
 
     print(style.header("  Session Management") + style.dim("  (nono-dev sb ...)"))
@@ -129,6 +131,7 @@ def main():
     fix.add_parser(subparsers)
     review.add_parser(subparsers)
     feature.add_parser(subparsers)
+    bare.add_parser(subparsers)
 
     # vm group
     vm_parser = subparsers.add_parser("vm", help="Manage Lima VMs")

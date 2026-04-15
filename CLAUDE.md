@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 nono-dev is a Python CLI tool for the nono project's development team. It provides:
 
 1. Lima Linux VM management for Rust cross-compilation on macOS (with real ext4 filesystem for Landlock enforcement)
-2. Sandboxed AI agent workflows (triage, fix, review, feature) using nono sandbox and git worktrees
+2. Sandboxed AI agent workflows (`triage`, `fix`, `review`, `feature`, `bare`) using nono sandbox and git worktrees when needed
 
 **Zero external dependencies** -- stdlib only (argparse, subprocess, tempfile, json, tomllib, etc.).
 
@@ -24,9 +24,9 @@ nono-dev fix 123
 Commands are grouped under `vm`, `sb`, and `wt`:
 
 ```
-nono-dev triage|fix|review|feature   # Top-level workflow commands
+nono-dev triage|fix|review|feature|bare   # Top-level workflow commands
 nono-dev vm create|connect|status|destroy|recreate
-nono-dev sb status|attach|stop|prune
+nono-dev sb list|attach|stop|prune
 nono-dev wt list|cd|cleanup
 nono-dev shell-init
 ```
@@ -48,9 +48,10 @@ nono-dev shell-init
 
 1. Load `nono-dev.toml` config (repo auto-detected from git remote if not set)
 2. For `fix`/`feature`: create a git worktree with `git worktree add`
-3. Build a `nono run --detached` command with sandbox permissions, system prompt, rollback
-4. Parse session ID from nono's stderr output
-5. User attaches later with `nono-dev sb attach`
+3. For `bare`: use the current checkout directly with no worktree
+4. Build a `nono run --detached` command with sandbox permissions, system prompt, rollback
+5. Parse session ID from nono's stderr output
+6. User attaches later with `nono-dev sb attach`
 
 ### VM creation flow
 
@@ -78,3 +79,4 @@ Files live on ext4 inside the VM (not virtiofs) so Landlock can enforce sandbox 
 - Claude Code's `-p` flag means "print mode" (non-interactive), not "prompt" -- prompts are positional args
 - Worktree commands need `--allow .git/` (not just `.git/worktrees/`) for git commit operations
 - `fix`/`feature` grant `--read` on the main repo for Claude's Read/Edit tools to follow worktree symlinks
+- `bare` runs directly in the current checkout, so prompts and workflows must avoid overwriting unrelated local changes

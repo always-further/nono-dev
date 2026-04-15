@@ -21,6 +21,7 @@ triage = "prompts/triage.md"   # custom system prompt for triage (optional)
 fix = "prompts/fix.md"         # custom system prompt for fix (optional)
 review = "prompts/review.md"   # custom system prompt for review (optional)
 feature = "prompts/feature.md" # custom system prompt for feature (optional)
+bare = "prompts/bare.md"       # custom system prompt for bare (optional)
 ```
 
 ## Sections
@@ -63,6 +64,7 @@ Override the default system prompts shipped with nono-dev. Paths are relative to
 | `fix` | System prompt for the `fix` command |
 | `review` | System prompt for the `review` command |
 | `feature` | System prompt for the `feature` command |
+| `bare` | System prompt for the `bare` command |
 
 When no override is set, nono-dev uses its built-in prompts. See [Custom Prompts](custom-prompts.md) for guidance on writing your own.
 

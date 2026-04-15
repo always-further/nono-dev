@@ -7,7 +7,7 @@
 Development environment and sandboxed workflow manager for the [nono](https://github.com/always-further/nono) project. Provides two things:
 
 1. **Lima Linux VMs** with Rust build toolchains for cross-compilation on macOS (real ext4 filesystem for Landlock sandbox enforcement).
-2. **Sandboxed AI workflows** -- issue triage, bug fixing, PR review, and feature development, each isolated in a git worktree with [nono](https://docs.nono.sh) sandbox protections.
+2. **Sandboxed AI workflows** -- issue triage, bug fixing, PR review, feature development in git worktrees, and direct current-checkout sessions, all protected by [nono](https://docs.nono.sh) sandboxes.
 
 See the [Documentation](https://always-further.github.io/nono-dev/) to get started!
 
@@ -50,12 +50,15 @@ nono-dev review https://github.com/org/repo/pull/456
 
 # Start a new feature
 nono-dev feature my-feature
+
+# Open a sandboxed Claude session in the current checkout
+nono-dev bare api-spike
 ```
 
 All sessions run detached in nono sandboxes with rollback enabled. Manage them with:
 
 ```bash
-nono-dev sb status              # Dashboard of sessions and worktrees
+nono-dev sb list                # Dashboard of sessions and worktrees
 nono-dev sb attach 123          # Attach to a session by issue number
 nono-dev sb attach fix-123      # Or by session name
 nono-dev sb stop review-456     # Stop a session
@@ -106,9 +109,10 @@ nono-dev triage <issue>           Triage a GitHub issue
 nono-dev fix <issue>              Fix a GitHub issue in a worktree
 nono-dev review <pr>              Review a GitHub PR
 nono-dev feature <branch>         Start a feature in a worktree
+nono-dev bare [name]              Start a sandboxed Claude session in the current checkout
 
 nono-dev vm create|connect|status|mount|destroy|recreate
-nono-dev sb status|attach|stop|prune
+nono-dev sb list|attach|stop|prune
 nono-dev wt list|cd|cleanup
 nono-dev git commit               AI-generated conventional commit
 

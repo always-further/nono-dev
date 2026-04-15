@@ -140,6 +140,23 @@ def get_worktree_dir(config):
     return os.path.join(config["_config_dir"], wt_dir)
 
 
+def get_project_root(config, start_dir=None):
+    """Return the git top-level directory, or fall back to the config dir."""
+    import subprocess
+
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        cwd=start_dir or os.getcwd(),
+    )
+    if result.returncode == 0:
+        root = result.stdout.strip()
+        if root:
+            return root
+    return config["_config_dir"]
+
+
 def get_rollback(config):
     """Return rollback settings dict: enabled, dest, exclude."""
     rb = dict(config["rollback"])

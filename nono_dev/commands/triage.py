@@ -1,7 +1,5 @@
 """Triage a GitHub issue using a sandboxed Claude agent."""
 
-import os
-
 from nono_dev import nono, project_config, style
 
 
@@ -22,6 +20,7 @@ def add_parser(subparsers):
 def run(args):
     nono.check_installed()
     config = project_config.load()
+    project_root = project_config.get_project_root(config)
     issue_number = project_config.parse_github_ref(args.issue_number)
     repo = project_config.get_repo(config)
     prompt_path = project_config.get_prompt_path("triage", config)
@@ -40,11 +39,12 @@ def run(args):
 
     session_id = nono.run_detached(
         session_name,
-        allows=[os.getcwd()],
+        allows=[project_root],
         allow_cwd=True,
         system_prompt=prompt_path,
         user_prompt=str(issue_number),
         rollback=rollback,
+        workdir=os.getcwd(),
     )
 
     print(style.success(f"Triage session started for issue #{issue_number}") + style.muted(f" ({repo})"))

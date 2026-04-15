@@ -36,6 +36,10 @@ def _parse_session_name(name):
     if m:
         return "feature", m.group(1), m.group(1)
 
+    m = re.match(r"^bare(?:-(.+))?$", name)
+    if m:
+        return "bare", m.group(1) or "-", None
+
     return "session", "-", None
 
 
@@ -137,6 +141,7 @@ def _style_cell(header, cell):
         type_colors = {
             "fix": style.info, "review": style.label,
             "triage": style.warning, "feature": style.value,
+            "bare": style.warning,
         }
         fn = type_colors.get(cell, style.muted)
         return fn(cell)
@@ -240,6 +245,11 @@ def run(_args):
                 changes = f"+{adds} -{dels}"
             else:
                 changes = "?"
+        elif session_type == "bare" and s.get("workdir") and os.path.isdir(s["workdir"]):
+            wt_name = name
+            wt_path = _relative_path(s["workdir"], config["_config_dir"])
+            adds, dels = worktree.diff_stat(s["workdir"])
+            changes = f"+{adds} -{dels}"
         else:
             wt_name = name
             wt_path = "-"

@@ -3,6 +3,7 @@
 import sys
 
 from nono_dev import nono
+from nono_dev.session_targets import named_matches
 
 
 def add_parser(subparsers):
@@ -35,10 +36,15 @@ def run(args):
         print("No active nono sessions found.")
         sys.exit(1)
 
-    # Try matching by session name first (e.g. fix-563, review-530)
-    by_name = [s for s in sessions if s.get("name") == target]
+    # Try matching by session name first (e.g. fix-563, review-530),
+    # plus common aliases like feature branch names.
+    by_name = named_matches(target, sessions)
     if len(by_name) == 1:
         nono.attach(by_name[0]["session_id"])
+    elif len(by_name) > 1:
+        print(f"Multiple sessions match '{target}':")
+        _print_sessions(by_name)
+        sys.exit(1)
 
     # Try matching by worktree branch name (e.g. issue-123 -> fix-123)
     import re
