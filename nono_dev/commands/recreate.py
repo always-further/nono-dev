@@ -1,6 +1,6 @@
 """Destroy and recreate a Lima VM."""
 
-from nono_dev import lima
+from nono_dev import lima, project_config
 from nono_dev.commands import create
 from nono_dev.config import DEFAULT_OS, DEFAULT_VM_NAME, SUPPORTED_OS
 
@@ -24,10 +24,13 @@ def add_parser(subparsers):
 def run(args):
     lima.check_installed()
 
-    if lima.vm_exists(args.name):
+    config = project_config.load()
+    lima_home = project_config.get_lima_home(config)
+
+    if lima.vm_exists(args.name, lima_home=lima_home):
         print(f"Deleting VM '{args.name}'...")
         lima.stop_sync(args.name)
-        lima.stop_vm(args.name)
-        lima.delete_vm(args.name)
+        lima.stop_vm(args.name, lima_home=lima_home)
+        lima.delete_vm(args.name, lima_home=lima_home)
 
     create.run(args)

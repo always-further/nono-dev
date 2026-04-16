@@ -3,7 +3,7 @@
 import os
 import sys
 
-from nono_dev import lima
+from nono_dev import lima, project_config
 from nono_dev.config import DEFAULT_VM_NAME
 
 
@@ -19,14 +19,19 @@ def add_parser(subparsers):
 def run(args):
     lima.check_installed()
 
-    if not lima.vm_exists(args.name):
+    config = project_config.load()
+    lima_home = project_config.get_lima_home(config)
+
+    if not lima.vm_exists(args.name, lima_home=lima_home):
         print(f"VM '{args.name}' does not exist.")
         print(f"Create one with: nono-dev vm create")
         sys.exit(1)
 
-    status = lima.vm_status(args.name)
+    status = lima.vm_status(args.name, lima_home=lima_home)
     if status != "Running":
         print(f"VM '{args.name}' is not running (status: {status}). Starting...")
-        lima.start_vm(args.name)
+        lima.start_vm(args.name, lima_home=lima_home)
 
+    if lima_home:
+        os.environ["LIMA_HOME"] = lima_home
     os.execvp("limactl", ["limactl", "shell", args.name])

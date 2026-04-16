@@ -2,7 +2,7 @@
 
 import sys
 
-from nono_dev import lima
+from nono_dev import lima, project_config
 from nono_dev.config import DEFAULT_VM_NAME
 
 
@@ -22,7 +22,10 @@ def add_parser(subparsers):
 def run(args):
     lima.check_installed()
 
-    if not lima.vm_exists(args.name):
+    config = project_config.load()
+    lima_home = project_config.get_lima_home(config)
+
+    if not lima.vm_exists(args.name, lima_home=lima_home):
         print(f"VM '{args.name}' does not exist.")
         sys.exit(1)
 
@@ -35,6 +38,6 @@ def run(args):
             sys.exit(0)
 
     lima.stop_sync(args.name)
-    lima.stop_vm(args.name)
-    lima.delete_vm(args.name)
+    lima.stop_vm(args.name, lima_home=lima_home)
+    lima.delete_vm(args.name, lima_home=lima_home)
     print(f"VM '{args.name}' deleted.")

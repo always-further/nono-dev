@@ -3,7 +3,7 @@
 import os
 import sys
 
-from nono_dev import lima
+from nono_dev import lima, project_config
 from nono_dev.config import DEFAULT_VM_NAME
 
 
@@ -30,9 +30,12 @@ def run(args):
     lima.check_installed()
     lima.check_mutagen_installed()
 
+    config = project_config.load()
+    lima_home = project_config.get_lima_home(config)
+
     vm_name = args.name
 
-    if not lima.vm_exists(vm_name):
+    if not lima.vm_exists(vm_name, lima_home=lima_home):
         print(f"VM '{vm_name}' does not exist.")
         sys.exit(1)
 
@@ -66,5 +69,5 @@ def run(args):
     lima.stop_sync(vm_name)
 
     print(f"Starting sync of {new_path} → ~/project...")
-    lima.start_sync(vm_name, new_path, guest_project)
+    lima.start_sync(vm_name, new_path, guest_project, lima_home=lima_home)
     print("Done.")

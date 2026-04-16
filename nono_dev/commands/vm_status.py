@@ -1,6 +1,6 @@
 """Show Lima VM status."""
 
-from nono_dev import lima
+from nono_dev import lima, project_config
 
 
 def add_parser(subparsers):
@@ -10,4 +10,8 @@ def add_parser(subparsers):
 
 def run(args):
     lima.check_installed()
-    lima.list_vms()
+
+    config = project_config.load()
+    lima_home = project_config.get_lima_home(config)
+
+    lima.list_vms(lima_home=lima_home)
