@@ -320,7 +320,9 @@ def _graph_counts(graph_json):
     except (OSError, json.JSONDecodeError):
         return 0, 0
     nodes = data.get("nodes") or data.get("Nodes") or []
-    edges = data.get("edges") or data.get("Edges") or []
+    # graphify writes networkx node_link_data with edges="links"; accept
+    # both keys so we stay compatible if that ever changes.
+    edges = data.get("links") or data.get("edges") or data.get("Edges") or []
     return len(nodes), len(edges)
 
 
