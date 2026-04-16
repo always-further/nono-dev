@@ -1,9 +1,8 @@
 """Connect to a Lima VM."""
 
 import os
-import sys
 
-from nono_dev import lima
+from nono_dev import lima, project_config
 from nono_dev.config import DEFAULT_VM_NAME
 
 
@@ -23,18 +22,24 @@ def add_parser(subparsers):
 
 def run(args):
     lima.check_installed()
-    vm = lima.resolve_vm_name(args.name_flag or args.name_pos, DEFAULT_VM_NAME)
 
-    status = lima.vm_status(vm)
+    config = project_config.load()
+    lima_home = project_config.get_lima_home(config)
+
+    vm = lima.resolve_vm_name(args.name_flag or args.name_pos, DEFAULT_VM_NAME, lima_home=lima_home)
+
+    status = lima.vm_status(vm, lima_home=lima_home)
     if status != "Running":
         print(f"VM '{vm}' is not running (status: {status}). Starting...")
-        lima.start_vm(vm)
+        lima.start_vm(vm, lima_home=lima_home)
 
-    info = lima.sync_info(vm)
+    info = lima.sync_info(vm, lima_home=lima_home)
     if info:
         host_path, guest_url = info
         print(f"Mount: {host_path} -> {guest_url}")
     else:
         print("Mount: (no active sync)")
 
+    if lima_home:
+        os.environ["LIMA_HOME"] = lima_home
     os.execvp("limactl", ["limactl", "shell", vm])

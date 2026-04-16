@@ -5,6 +5,7 @@ import os
 import sys
 
 from nono_dev import nono, project_config, style, worktree
+from nono_dev.session_targets import named_matches
 
 
 def add_parser(subparsers):
@@ -25,9 +26,11 @@ def add_parser(subparsers):
 def _resolve_session(target, sessions):
     """Find a session by name, branch name, number, or ID."""
     # By name
-    for s in sessions:
-        if s.get("name") == target:
-            return s
+    by_name = named_matches(target, sessions)
+    if len(by_name) == 1:
+        return by_name[0]
+    if len(by_name) > 1:
+        return by_name
 
     # By branch name (issue-N or <slug>-issue-N -> fix-[slug-]N)
     fix_name = project_config.branch_to_fix_session(target)
@@ -58,7 +61,7 @@ def _get_worktree_info(session, config):
     if not branch:
         return None
 
-    project_root = config["_config_dir"]
+    project_root = project_config.get_project_root(config)
     all_wts = worktree.list_worktrees(cwd=project_root)
 
     for wt in all_wts:
@@ -80,6 +83,14 @@ def run(args):
 
     sessions = nono.ps_json(include_all=True)
     session = _resolve_session(args.target, sessions)
+
+    if isinstance(session, list):
+        print(style.error(f"Multiple sessions match '{args.target}':"), file=sys.stderr)
+        for item in session:
+            sid = item.get("session_id", "?")[:6]
+            name = item.get("name", "?")
+            print(f"  {sid}  {name}", file=sys.stderr)
+        sys.exit(1)
 
     if not session:
         print(style.error(f"No session found matching '{args.target}'."), file=sys.stderr)

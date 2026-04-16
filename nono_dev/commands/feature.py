@@ -23,9 +23,9 @@ def add_parser(subparsers):
 def run(args):
     nono.check_installed()
     config = project_config.load()
-    repo_root = os.getcwd()
-    graph_line = project_config.graph_path_for_prompt(config, repo_hint=repo_root)
-    staleness = project_config.graph_staleness_warning(config, repo_hint=repo_root)
+    project_root = project_config.get_project_root(config)
+    graph_line = project_config.graph_path_for_prompt(config, repo_hint=project_root)
+    staleness = project_config.graph_staleness_warning(config, repo_hint=project_root)
     if staleness:
         print(style.warning(staleness), file=sys.stderr)
     prompt_path = project_config.get_rendered_prompt_path(
@@ -46,7 +46,7 @@ def run(args):
             print(f"  {style.label('Attach:')} {style.value('nono-dev sb attach ' + s.get('session_id', session_name))}")
             return
 
-    result = worktree.add(args.branch_name, wt_path)
+    result = worktree.add(args.branch_name, wt_path, cwd=project_root)
     if result is None:
         abs_path = os.path.abspath(wt_path)
         if os.path.isdir(abs_path):
@@ -60,12 +60,12 @@ def run(args):
     # Grant read access to the main repo so Claude's Read/Edit tools
     # can follow symlinks from the worktree back to the canonical paths.
     # Grant write access to .git/ for commits, index, refs, objects.
-    git_dir = os.path.join(repo_root, ".git")
+    git_dir = os.path.join(project_root, ".git")
 
     session_id = nono.run_detached(
         session_name,
         allows=[abs_path, git_dir],
-        reads=[repo_root],
+        reads=[project_root],
         allow_cwd=True,
         system_prompt=prompt_path,
         rollback=rollback,

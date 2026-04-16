@@ -19,6 +19,7 @@ enabled = false                    # enable nono rollback snapshots (default: fa
 # fix = "prompts/fix.md"
 # review = "prompts/review.md"
 # feature = "prompts/feature.md"
+# bare = "prompts/bare.md"
 
 # Graphify knowledge-graph targets. Each [graphs.<name>] section declares
 # a repo to index. Runs `nd graph build|update|query|explain|path|status`

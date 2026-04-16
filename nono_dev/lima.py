@@ -7,6 +7,15 @@ import subprocess
 import sys
 
 
+def _lima_env(lima_home=None):
+    """Return an env dict with LIMA_HOME set, or None for default."""
+    if lima_home is None:
+        return None
+    env = os.environ.copy()
+    env["LIMA_HOME"] = lima_home
+    return env
+
+
 def _brew_install(formula, check_cmd=None):
     """Install a Homebrew formula if the command is not already available."""
     cmd = check_cmd or formula.split("/")[-1]
@@ -36,11 +45,12 @@ def check_mutagen_installed():
     _brew_install("mutagen-io/mutagen/mutagen", check_cmd="mutagen")
 
 
-def vm_exists(name):
+def vm_exists(name, lima_home=None):
     """Check whether a VM with the given name exists."""
     result = subprocess.run(
         ["limactl", "list", "--json"],
         capture_output=True, text=True,
+        env=_lima_env(lima_home),
     )
     if result.returncode != 0:
         return False
@@ -55,11 +65,12 @@ def vm_exists(name):
         return False
 
 
-def vm_status(name):
+def vm_status(name, lima_home=None):
     """Return the status of a VM (e.g. 'Running', 'Stopped'), or None."""
     result = subprocess.run(
         ["limactl", "list", "--json"],
         capture_output=True, text=True,
+        env=_lima_env(lima_home),
     )
     if result.returncode != 0:
         return None
@@ -73,29 +84,32 @@ def vm_status(name):
         return None
 
 
-def create_vm(name, lima_config_path):
+def create_vm(name, lima_config_path, lima_home=None):
     """Create a Lima VM from a YAML config file."""
     result = subprocess.run(
         ["limactl", "create", "--tty=false", "--name", name, lima_config_path],
+        env=_lima_env(lima_home),
     )
     if result.returncode != 0:
         sys.exit(1)
 
 
-def start_vm(name):
+def start_vm(name, lima_home=None):
     """Start a Lima VM."""
     result = subprocess.run(
         ["limactl", "start", name],
+        env=_lima_env(lima_home),
     )
     if result.returncode != 0:
         sys.exit(1)
 
 
-def run_in_vm(name, command):
+def run_in_vm(name, command, lima_home=None):
     """Run a command inside a VM as root."""
     result = subprocess.run(
         ["limactl", "shell", name, "sudo", "bash", "-c", command],
         capture_output=True, text=True,
+        env=_lima_env(lima_home),
     )
     if result.returncode != 0:
         msg = result.stderr.strip() or result.stdout.strip()
@@ -104,11 +118,12 @@ def run_in_vm(name, command):
     return result
 
 
-def run_in_vm_as_user(name, username, command):
+def run_in_vm_as_user(name, username, command, lima_home=None):
     """Run a command inside a VM as a specific user."""
     result = subprocess.run(
         ["limactl", "shell", name, "sudo", "-u", username, "bash", "-c", command],
         capture_output=True, text=True,
+        env=_lima_env(lima_home),
     )
     if result.returncode != 0:
         msg = result.stderr.strip() or result.stdout.strip()
@@ -117,26 +132,35 @@ def run_in_vm_as_user(name, username, command):
     return result
 
 
-def stop_vm(name):
+def stop_vm(name, lima_home=None):
     """Stop a running Lima VM."""
-    subprocess.run(["limactl", "stop", name], capture_output=True, text=True)
+    subprocess.run(
+        ["limactl", "stop", name],
+        capture_output=True, text=True,
+        env=_lima_env(lima_home),
+    )
 
 
-def delete_vm(name):
+def delete_vm(name, lima_home=None):
     """Delete a Lima VM."""
-    subprocess.run(["limactl", "delete", "--force", name], check=True)
+    subprocess.run(
+        ["limactl", "delete", "--force", name],
+        check=True,
+        env=_lima_env(lima_home),
+    )
 
 
-def list_vms():
+def list_vms(lima_home=None):
     """List all Lima VMs and print the output."""
-    subprocess.run(["limactl", "list"], check=True)
+    subprocess.run(["limactl", "list"], check=True, env=_lima_env(lima_home))
 
 
-def list_vms_json():
+def list_vms_json(lima_home=None):
     """List all Lima VMs and return parsed JSON."""
     result = subprocess.run(
         ["limactl", "list", "--json"],
         capture_output=True, text=True, check=True,
+        env=_lima_env(lima_home),
     )
     vms = []
     for line in result.stdout.strip().splitlines():
@@ -144,9 +168,10 @@ def list_vms_json():
     return vms
 
 
-def ssh_config_path(vm_name):
+def ssh_config_path(vm_name, lima_home=None):
     """Absolute path to Lima's per-VM SSH config file."""
-    return os.path.expanduser(f"~/.lima/{vm_name}/ssh.config")
+    base = lima_home or os.path.expanduser("~/.lima")
+    return os.path.join(base, vm_name, "ssh.config")
 
 
 def ssh_host(vm_name):
@@ -154,20 +179,20 @@ def ssh_host(vm_name):
     return f"lima-{vm_name}"
 
 
-def ssh_argv(vm_name, remote_command=None):
+def ssh_argv(vm_name, remote_command=None, lima_home=None):
     """Build an ssh argv for a VM using Lima's per-VM config directly.
 
     Uses `-F <lima ssh.config>` so we don't depend on the user's
     `~/.ssh/config` having been patched with an `Include` line. This
     works even on hosts that have never started a mutagen sync.
     """
-    argv = ["ssh", "-F", ssh_config_path(vm_name), ssh_host(vm_name)]
+    argv = ["ssh", "-F", ssh_config_path(vm_name, lima_home=lima_home), ssh_host(vm_name)]
     if remote_command is not None:
         argv.append(remote_command)
     return argv
 
 
-def resolve_vm_name(name, default):
+def resolve_vm_name(name, default, lima_home=None):
     """Resolve the target VM name.
 
     - If `name` is given explicitly and that VM exists, use it.
@@ -177,7 +202,7 @@ def resolve_vm_name(name, default):
       if it exists, else the sole VM if exactly one exists, else error.
     """
     try:
-        vms = list_vms_json()
+        vms = list_vms_json(lima_home=lima_home)
     except (subprocess.CalledProcessError, FileNotFoundError):
         vms = []
     vm_names = [v["name"] for v in vms if v.get("name")]
@@ -219,13 +244,14 @@ def _sync_session_name(vm_name):
     return f"{vm_name}-sync"
 
 
-def _ensure_ssh_include(vm_name):
+def _ensure_ssh_include(vm_name, lima_home=None):
     """Ensure ~/.ssh/config includes Lima's SSH config for the VM.
 
     This lets SSH-based tools (mutagen, rsync, etc.) resolve the
     lima-<name> hostname without extra flags.
     """
-    lima_ssh_config = os.path.expanduser(f"~/.lima/{vm_name}/ssh.config")
+    base = lima_home or os.path.expanduser("~/.lima")
+    lima_ssh_config = os.path.join(base, vm_name, "ssh.config")
     ssh_dir = os.path.expanduser("~/.ssh")
     ssh_config = os.path.join(ssh_dir, "config")
 
@@ -247,13 +273,13 @@ def _ensure_ssh_include(vm_name):
         os.chmod(ssh_config, 0o600)
 
 
-def start_sync(vm_name, host_path, guest_path):
+def start_sync(vm_name, host_path, guest_path, lima_home=None):
     """Start a mutagen sync session from host to VM via SSH."""
     check_mutagen_installed()
     session_name = _sync_session_name(vm_name)
 
     # Ensure SSH can resolve lima-<name>
-    _ensure_ssh_include(vm_name)
+    _ensure_ssh_include(vm_name, lima_home=lima_home)
 
     # Terminate any stale session with the same name
     subprocess.run(
@@ -280,7 +306,7 @@ def start_sync(vm_name, host_path, guest_path):
         sys.exit(1)
 
 
-def stop_sync(vm_name):
+def stop_sync(vm_name, lima_home=None):
     """Terminate the mutagen sync session for a VM."""
     session_name = _sync_session_name(vm_name)
     subprocess.run(
@@ -289,7 +315,7 @@ def stop_sync(vm_name):
     )
 
 
-def sync_status(vm_name):
+def sync_status(vm_name, lima_home=None):
     """Print the mutagen sync status for a VM."""
     session_name = _sync_session_name(vm_name)
     subprocess.run(
@@ -297,7 +323,7 @@ def sync_status(vm_name):
     )
 
 
-def sync_info(vm_name):
+def sync_info(vm_name, lima_home=None):
     """Return (host_path, guest_url) for the current sync session, or None."""
     session_name = _sync_session_name(vm_name)
     result = subprocess.run(

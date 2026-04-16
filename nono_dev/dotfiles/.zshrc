@@ -166,6 +166,9 @@ alias gcb='git checkout -b'
 # Quick amend
 alias gcae='git commit --amend --no-edit'
 
+# Switch to main branch
+alias gcm='git checkout main'
+
 # Undo last commit (keep changes)
 alias guncommit='git reset --soft HEAD~1'
 
@@ -189,6 +192,7 @@ killport() {
 #######################################
 
 # Run nono locally e.g. nn run -- claude
+unalias nn 2>/dev/null
 nn() {
   cargo run -- "$@"
 }
@@ -221,6 +225,16 @@ alias ndvc='nono-dev vm connect'
 #######################################
 # Quality of Life
 #######################################
+
+# Exit shortcut
+alias x='exit'
+
+# Launch Chrome from CLI
+if [[ "$OSTYPE" == darwin* ]]; then
+    alias chrome='open -a "Google Chrome"'
+else
+    alias chrome='google-chrome'
+fi
 
 # Clear + list
 alias cls='clear && ls'

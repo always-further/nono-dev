@@ -24,13 +24,18 @@ def _parse_session_name(name):
     kind, slug, ref = project_config.parse_session_name(name)
     if kind == "fix":
         issue_ref = f"{slug}#{ref}" if slug else f"#{ref}"
-        branch = f"{slug}-issue-{ref}" if slug else f"issue-{ref}"
+        branch = f"xrepo-{slug}-issue-{ref}" if slug else f"issue-{ref}"
         return "fix", issue_ref, branch
     if kind in ("triage", "review"):
         issue_ref = f"{slug}#{ref}" if slug else f"#{ref}"
         return kind, issue_ref, None
     if kind == "feature":
         return "feature", ref, ref
+
+    m = re.match(r"^bare(?:-(.+))?$", name)
+    if m:
+        return "bare", m.group(1) or "-", None
+
     return "session", "-", None
 
 
@@ -102,7 +107,7 @@ def _collect_worktrees(sessions, config):
     all_wts = []
     seen_roots = set()
 
-    project_root = config["_config_dir"]
+    project_root = project_config.get_project_root(config)
     wts = worktree.list_worktrees(cwd=project_root)
     all_wts.extend(wts)
     for wt in wts:
@@ -132,6 +137,7 @@ def _style_cell(header, cell):
         type_colors = {
             "fix": style.info, "review": style.label,
             "triage": style.warning, "feature": style.value,
+            "bare": style.warning,
         }
         fn = type_colors.get(cell, style.muted)
         return fn(cell)
@@ -196,6 +202,7 @@ def run(_args):
     nono.check_installed()
     config = project_config.load()
 
+    project_root = project_config.get_project_root(config)
     sessions = nono.ps_json(include_all=False)
     all_worktrees = _collect_worktrees(sessions, config)
 
@@ -229,12 +236,17 @@ def run(_args):
 
         if wt:
             wt_name = wt.get("branch", os.path.basename(wt["path"]))
-            wt_path = _relative_path(wt["path"], s.get("workdir") or config["_config_dir"])
+            wt_path = _relative_path(wt["path"], s.get("workdir") or project_root)
             if os.path.isdir(wt["path"]):
                 adds, dels = worktree.diff_stat(wt["path"])
                 changes = f"+{adds} -{dels}"
             else:
                 changes = "?"
+        elif session_type == "bare" and s.get("workdir") and os.path.isdir(s["workdir"]):
+            wt_name = name
+            wt_path = _relative_path(s["workdir"], project_root)
+            adds, dels = worktree.diff_stat(s["workdir"])
+            changes = f"+{adds} -{dels}"
         else:
             wt_name = name
             wt_path = "-"

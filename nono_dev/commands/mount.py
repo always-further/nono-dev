@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 
-from nono_dev import lima
+from nono_dev import lima, project_config
 from nono_dev.config import DEFAULT_VM_NAME
 
 
@@ -44,6 +44,9 @@ def run(args):
     lima.check_installed()
     lima.check_mutagen_installed()
 
+    config = project_config.load()
+    lima_home = project_config.get_lima_home(config)
+
     # Disambiguate positionals:
     #   mount                -> show default VM mount
     #   mount <vm>           -> show that VM's mount
@@ -61,12 +64,12 @@ def run(args):
         else:
             vm_arg = vm_arg or args.arg1
 
-    vm_name = lima.resolve_vm_name(vm_arg, DEFAULT_VM_NAME)
+    vm_name = lima.resolve_vm_name(vm_arg, DEFAULT_VM_NAME, lima_home=lima_home)
     args.path = path_arg  # keep downstream code happy
 
     # Show current mount
     if args.path is None:
-        info = lima.sync_info(vm_name)
+        info = lima.sync_info(vm_name, lima_home=lima_home)
         if info:
             host_path, guest_url = info
             print(f"  VM:     {vm_name}")
@@ -85,15 +88,15 @@ def run(args):
     username = args.user or os.environ.get("USER", "dev")
     guest_project = f"/home/{username}.guest/project"
 
-    info = lima.sync_info(vm_name)
+    info = lima.sync_info(vm_name, lima_home=lima_home)
     if info and info[0] == new_path:
         print(f"Already syncing '{new_path}' on '{vm_name}'.")
         return
 
     if info:
         print(f"Stopping sync of {info[0]}...")
-    lima.stop_sync(vm_name)
+    lima.stop_sync(vm_name, lima_home=lima_home)
 
     print(f"Starting sync of {new_path} -> ~/project on '{vm_name}'...")
-    lima.start_sync(vm_name, new_path, guest_project)
+    lima.start_sync(vm_name, new_path, guest_project, lima_home=lima_home)
     print("Done.")

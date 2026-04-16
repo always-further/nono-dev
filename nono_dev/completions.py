@@ -78,7 +78,7 @@ def get_completions(words):
 
 def _top_level():
     return [
-        "triage", "fix", "review", "feature",
+        "triage", "fix", "review", "feature", "bare",
         "vm", "sb", "wt", "git", "graph", "shell-init", "dotfiles",
     ]
 

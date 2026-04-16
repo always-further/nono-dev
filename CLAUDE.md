@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 nono-dev is a Python CLI tool for the nono project's development team. It provides:
 
 1. Lima Linux VM management for Rust cross-compilation on macOS (with real ext4 filesystem for Landlock enforcement)
-2. Sandboxed AI agent workflows (triage, fix, review, feature) using nono sandbox and git worktrees
+2. Sandboxed AI agent workflows (`triage`, `fix`, `review`, `feature`, `bare`) using nono sandbox and git worktrees when needed
 
 **Zero external dependencies** -- stdlib only (argparse, subprocess, tempfile, json, tomllib, etc.).
 
@@ -25,10 +25,11 @@ nono-dev fix 123              # or `nd fix 123` (alias)
 Commands are grouped under `vm`, `sb`, `wt`, and `git`:
 
 ```
-nono-dev triage|fix|review|feature   # Top-level workflow commands
+nono-dev triage|fix|review|feature|bare   # Top-level workflow commands
 nono-dev vm create|connect|exec|status|mount|destroy|recreate
-nono-dev sb status|attach|stop|prune|inspect
+nono-dev sb list|attach|stop|prune|inspect
 nono-dev wt list|cd|start|cleanup
+nono-dev graph build|update|query|explain|path|status
 nono-dev git commit
 nono-dev install|dotfiles|shell-init
 ```
@@ -54,10 +55,11 @@ Two console scripts are registered (see `pyproject.toml`): `nono-dev` and the sh
 
 1. Load `nono-dev.toml` config (repo auto-detected from git remote if not set)
 2. For `fix`/`feature`: create a git worktree with `git worktree add`
-3. Build a `nono run --detached --profile nono-dev` command with sandbox permissions, system prompt, rollback
-4. `run_detached` auto-grants `--read` on the nono-dev source tree so the `nd` editable install can import inside the sandbox
-5. Parse session ID from nono's stderr output
-6. User attaches later with `nono-dev sb attach`
+3. For `bare`: use the current checkout directly with no worktree
+4. Build a `nono run --detached --profile nono-dev` command with sandbox permissions, system prompt, rollback
+5. `run_detached` auto-grants `--read` on the nono-dev source tree so the `nd` editable install can import inside the sandbox
+6. Parse session ID from nono's stderr output
+7. User attaches later with `nono-dev sb attach`
 
 The `nono-dev` sandbox profile (`nono_dev/profiles/nono-dev.json`) extends `claude-code` and adds read grants for `~/.lima`, `~/.config/gh`, `~/.ssh`, plus read-file access to `~/.gitconfig(.local)`. That's enough for a sandboxed agent to run `nd vm exec` (SSH into Lima VMs) and `gh` without further per-session plumbing.
 
@@ -92,3 +94,5 @@ Files live on ext4 inside the VM (not virtiofs) so Landlock can enforce sandbox 
 - Host-aliased SSH (`ssh lima-<vm>`) without `-F` is NOT safe to rely on — it only works if mutagen's `_ensure_ssh_include` has patched `~/.ssh/config` on that host, which isn't guaranteed
 - `lima.resolve_vm_name(name, default)` fails closed: an explicit name that doesn't exist errors rather than falling back (critical for destructive commands like `destroy`/`recreate`)
 - `vm mount` disambiguates its two positional args by shape: an arg starting with `/`, `~`, `./`, `../`, or containing a path separator / existing dir is treated as a path; otherwise it's a VM name. Use `-m <name>` to force VM interpretation.
+- `bare` runs directly in the current checkout, so prompts and workflows must avoid overwriting unrelated local changes
+- `lima.home` (set in `~/.config/nono-dev/config.toml` or `nono-dev.toml`) is threaded through every `limactl` and mutagen call via `LIMA_HOME` — VM-touching commands must load it via `project_config.get_lima_home(config)` and pass it as `lima_home=` to `lima.*` helpers

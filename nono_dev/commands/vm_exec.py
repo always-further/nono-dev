@@ -5,7 +5,7 @@ import shlex
 import subprocess
 import sys
 
-from nono_dev import lima
+from nono_dev import lima, project_config
 from nono_dev.config import DEFAULT_VM_NAME
 
 
@@ -30,13 +30,17 @@ def add_parser(subparsers):
 
 def run(args):
     lima.check_installed()
-    vm = lima.resolve_vm_name(args.name, DEFAULT_VM_NAME)
 
-    if lima.vm_status(vm) != "Running":
+    config = project_config.load()
+    lima_home = project_config.get_lima_home(config)
+
+    vm = lima.resolve_vm_name(args.name, DEFAULT_VM_NAME, lima_home=lima_home)
+
+    if lima.vm_status(vm, lima_home=lima_home) != "Running":
         print(f"VM '{vm}' is not running.", file=sys.stderr)
         sys.exit(1)
 
-    ssh_config = lima.ssh_config_path(vm)
+    ssh_config = lima.ssh_config_path(vm, lima_home=lima_home)
     if not os.path.isfile(ssh_config):
         print(
             f"Error: Lima SSH config not found at {ssh_config}. "
@@ -48,5 +52,5 @@ def run(args):
     quoted = " ".join(shlex.quote(c) for c in args.command)
     remote = f"cd {shlex.quote(args.cwd)} && {quoted}"
 
-    result = subprocess.run(lima.ssh_argv(vm, remote))
+    result = subprocess.run(lima.ssh_argv(vm, remote, lima_home=lima_home))
     sys.exit(result.returncode)

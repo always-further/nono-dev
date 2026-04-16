@@ -13,6 +13,7 @@ DEFAULTS = {
     "rollback": {"enabled": False, "dest": None, "exclude": []},
     "prompts": {},
     "graphs": {},
+    "lima": {"home": None},
 }
 
 # Default per-dev store root for Graphify outputs.
@@ -22,25 +23,37 @@ DEFAULT_GRAPH_STORE_ROOT = "~/.local/share/nono-dev/graphs"
 def load(start_dir=None):
     """Find and parse nono-dev.toml, walking up from start_dir.
 
-    Returns a dict with defaults filled in. Returns defaults if no
-    config file is found.
+    Returns a dict with defaults filled in.  Merge order:
+    hardcoded DEFAULTS -> user config -> per-repo nono-dev.toml.
     """
+    from nono_dev import user_config
+
     search_dir = os.path.abspath(start_dir or os.getcwd())
     config_path = _find_config(search_dir)
 
     if config_path is None:
-        config = {}
+        repo_config = {}
     else:
         with open(config_path, "rb") as f:
-            config = tomllib.load(f)
+            repo_config = tomllib.load(f)
+
+    usr = user_config.load()
 
     merged = {}
+    worktree_source = "default"
     for section, defaults in DEFAULTS.items():
         merged[section] = dict(defaults)
-        if section in config:
-            merged[section].update(config[section])
+        if section in usr:
+            merged[section].update(usr[section])
+            if section == "worktree" and "dir" in usr.get("worktree", {}):
+                worktree_source = "user"
+        if section in repo_config:
+            merged[section].update(repo_config[section])
+            if section == "worktree" and "dir" in repo_config.get("worktree", {}):
+                worktree_source = "repo"
 
     merged["_config_dir"] = os.path.dirname(config_path) if config_path else search_dir
+    merged["_worktree_source"] = worktree_source
     return merged
 
 
@@ -230,11 +243,45 @@ def namespace_slug(url_repo, current_repo):
 
 
 def get_worktree_dir(config):
-    """Return the absolute path to the worktree directory."""
+    """Return the absolute path to the worktree directory.
+
+    When the path comes from user-level config and is absolute, the
+    repo name is auto-appended to keep worktrees from different
+    projects separated (e.g. /Volumes/SSD/worktrees/nono/).
+    """
     wt_dir = config["worktree"]["dir"]
     if os.path.isabs(wt_dir):
+        if config.get("_worktree_source") == "user":
+            repo = get_repo(config)
+            repo_name = repo.split("/")[-1] if "/" in repo else repo
+            return os.path.join(wt_dir, repo_name)
         return wt_dir
     return os.path.join(config["_config_dir"], wt_dir)
+
+
+def get_lima_home(config):
+    """Return the custom Lima home directory, or None for the default."""
+    home = config.get("lima", {}).get("home")
+    if home:
+        return os.path.expanduser(home)
+    return None
+
+
+def get_project_root(config, start_dir=None):
+    """Return the git top-level directory, or fall back to the config dir."""
+    import subprocess
+
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        cwd=start_dir or os.getcwd(),
+    )
+    if result.returncode == 0:
+        root = result.stdout.strip()
+        if root:
+            return root
+    return config["_config_dir"]
 
 
 def get_rollback(config):

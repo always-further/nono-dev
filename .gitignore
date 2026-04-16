@@ -7,3 +7,5 @@ build/
 uv.lock
 .DS_Store
 .claude/settings.local.json
+!nono_dev/prompts/
+!nono_dev/prompts/*.md

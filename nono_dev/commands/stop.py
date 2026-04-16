@@ -4,6 +4,7 @@ import subprocess
 import sys
 
 from nono_dev import nono, project_config
+from nono_dev.session_targets import named_matches
 
 
 def add_parser(subparsers):
@@ -24,9 +25,17 @@ def add_parser(subparsers):
 def _resolve_session_id(target, sessions):
     """Resolve a target to a session ID."""
     # Try by session name
-    by_name = [s for s in sessions if s.get("name") == target]
+    by_name = named_matches(target, sessions)
     if len(by_name) == 1:
         return by_name[0]["session_id"]
+    if len(by_name) > 1:
+        print(f"Multiple sessions match '{target}':")
+        for s in by_name:
+            sid = s.get("session_id", "?")[:6]
+            name = s.get("name", "?")
+            print(f"  {sid}  {name}")
+        print("\nUse the full session name or ID.")
+        sys.exit(1)
 
     # Try by worktree branch name. Handles both `issue-N` and cross-repo
     # `<slug>-issue-N` shapes produced by `nd fix <url>`.

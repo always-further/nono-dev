@@ -2,7 +2,7 @@
 
 import sys
 
-from nono_dev import lima
+from nono_dev import lima, project_config
 from nono_dev.config import DEFAULT_VM_NAME
 
 
@@ -25,7 +25,11 @@ def add_parser(subparsers):
 
 def run(args):
     lima.check_installed()
-    vm = lima.resolve_vm_name(args.name_flag or args.name_pos, DEFAULT_VM_NAME)
+
+    config = project_config.load()
+    lima_home = project_config.get_lima_home(config)
+
+    vm = lima.resolve_vm_name(args.name_flag or args.name_pos, DEFAULT_VM_NAME, lima_home=lima_home)
 
     if not args.force:
         confirm = input(
@@ -35,7 +39,7 @@ def run(args):
             print("Aborted.")
             sys.exit(0)
 
-    lima.stop_sync(vm)
-    lima.stop_vm(vm)
-    lima.delete_vm(vm)
+    lima.stop_sync(vm, lima_home=lima_home)
+    lima.stop_vm(vm, lima_home=lima_home)
+    lima.delete_vm(vm, lima_home=lima_home)
     print(f"VM '{vm}' deleted.")

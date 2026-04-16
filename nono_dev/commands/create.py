@@ -4,15 +4,22 @@ import os
 import sys
 import tempfile
 
-from nono_dev import lima, template
-from nono_dev.config import DEFAULT_CPUS, DEFAULT_DISK, DEFAULT_MEMORY, DEFAULT_OS, DEFAULT_VM_NAME
+from nono_dev import lima, project_config, template
+from nono_dev.config import (
+    DEFAULT_CPUS,
+    DEFAULT_DISK,
+    DEFAULT_MEMORY,
+    DEFAULT_OS,
+    DEFAULT_VM_NAME,
+    SUPPORTED_OS,
+)
 
 
 def add_parser(subparsers):
     parser = subparsers.add_parser("create", help="Create a development VM")
     parser.add_argument(
         "--os", dest="os_name", default=DEFAULT_OS,
-        choices=("debian", "ubuntu"),
+        choices=SUPPORTED_OS,
         help=f"Operating system (default: {DEFAULT_OS})",
     )
     parser.add_argument(
@@ -21,7 +28,7 @@ def add_parser(subparsers):
     )
     parser.add_argument(
         "--extras", default="",
-        help="Comma-separated list of additional apt packages",
+        help="Comma-separated list of additional packages",
     )
     parser.add_argument(
         "--mount", default=None,
@@ -58,20 +65,25 @@ def run(args):
     lima.check_installed()
     lima.check_mutagen_installed()
 
+    config = project_config.load()
+    lima_home = project_config.get_lima_home(config)
+
     username = args.user or os.environ.get("USER", "dev")
     mount_path = os.path.abspath(args.mount) if args.mount else os.getcwd()
     extra_packages = [p.strip() for p in args.extras.split(",") if p.strip()]
 
-    if lima.vm_exists(args.name):
+    if lima.vm_exists(args.name, lima_home=lima_home):
         print(f"VM '{args.name}' already exists.")
         choice = input("[r]ecreate / [c]onnect / [a]bort? ").strip().lower()
         if choice == "c":
+            if lima_home:
+                os.environ["LIMA_HOME"] = lima_home
             os.execvp("limactl", ["limactl", "shell", args.name])
         elif choice == "r":
             print(f"Deleting VM '{args.name}'...")
             lima.stop_sync(args.name)
-            lima.stop_vm(args.name)
-            lima.delete_vm(args.name)
+            lima.stop_vm(args.name, lima_home=lima_home)
+            lima.delete_vm(args.name, lima_home=lima_home)
         else:
             print("Aborted.")
             sys.exit(0)
@@ -95,17 +107,17 @@ def run(args):
 
     try:
         print(f"Creating VM '{args.name}' ({args.os_name})...")
-        lima.create_vm(args.name, config_path)
+        lima.create_vm(args.name, config_path, lima_home=lima_home)
     finally:
         os.unlink(config_path)
 
     print(f"Starting VM '{args.name}'...")
-    lima.start_vm(args.name)
+    lima.start_vm(args.name, lima_home=lima_home)
 
     guest_project = f"/home/{username}.guest/project"
 
     print("Starting mutagen sync...")
-    lima.start_sync(args.name, mount_path, guest_project)
+    lima.start_sync(args.name, mount_path, guest_project, lima_home=lima_home)
 
     print(f"""
 VM '{args.name}' created successfully.

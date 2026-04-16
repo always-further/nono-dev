@@ -77,16 +77,33 @@ This command:
 2. Launches Claude in a nono sandbox with write access to the worktree
 3. The agent waits for your direction when you attach
 
+### `bare`
+
+Start a sandboxed Claude session directly in the current checkout.
+
+```bash
+nono-dev bare [name]
+nono-dev bare api-spike
+```
+
+This command:
+
+1. Uses the current repository checkout as the sandbox workspace
+2. Launches Claude in a nono sandbox with write access to the current checkout
+3. The agent waits for your direction when you attach
+
+Use this when you want a sandboxed interactive Claude session without creating a branch or worktree first.
+
 ---
 
 ## `sb` -- Sandbox Session Management
 
-### `sb status`
+### `sb list`
 
 Show a dashboard of all managed worktrees and nono sessions.
 
 ```bash
-nono-dev sb status
+nono-dev sb list
 ```
 
 Output:
@@ -94,6 +111,7 @@ Output:
 ```
 NAME              PATH                    TYPE    ISSUE/PR  SESSION  STATUS   ATTACH    AGE    CHANGES
 issue-42          .worktrees/issue-42     fix     #42       82984b   running  detached  2h30m  +34 -12
+bare-api-spike    .                       bare    api-spike c1d2e3   running  detached  12m    +3 -1
 review-530        -                       review  #530      abe85b   running  attached  15m    -
 issue-99          .worktrees/issue-99     fix     #99       -        -        -         -      +120 -45
 ```
@@ -359,16 +377,16 @@ Explicit names that don't exist **fail closed** — they will never silently fal
 Create a development VM.
 
 ```bash
-nono-dev vm create [--os {debian,ubuntu}] [name] [--extras PKG,PKG] [--mount PATH] [--user USER]
+nono-dev vm create [--os {fedora,ubuntu,debian}] [name] [--extras PKG,PKG] [--mount PATH] [--user USER]
                    [--no-rust] [--shell-setup]
                    [--disk SIZE] [--cpus N] [--memory SIZE]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--os` | `ubuntu` | Operating system |
+| `--os` | `fedora` | Operating system (`fedora`, `ubuntu`, `debian`) |
 | `name` | `nono-dev` | VM name (positional) |
-| `--extras` | none | Additional apt packages (comma-separated) |
+| `--extras` | none | Additional packages (comma-separated, distro-native) |
 | `--mount` | current directory | Host directory to sync to `~/project` via mutagen |
 | `--user` | current macOS user | Username in the VM |
 | `--no-rust` | | Skip Rust/Cargo installation |

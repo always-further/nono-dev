@@ -23,11 +23,11 @@ def add_parser(subparsers):
 def run(args):
     nono.check_installed()
     config = project_config.load()
+    project_root = project_config.get_project_root(config)
     url_repo, pr_number = project_config.parse_github_ref_full(args.pr_number)
     repo = project_config.get_repo(config)
-    cwd = os.getcwd()
-    graph_line = project_config.graph_path_for_prompt(config, repo_hint=cwd)
-    staleness = project_config.graph_staleness_warning(config, repo_hint=cwd)
+    graph_line = project_config.graph_path_for_prompt(config, repo_hint=project_root)
+    staleness = project_config.graph_staleness_warning(config, repo_hint=project_root)
     if staleness:
         print(style.warning(staleness), file=sys.stderr)
     prompt_path = project_config.get_rendered_prompt_path(
@@ -49,11 +49,12 @@ def run(args):
 
     session_id = nono.run_detached(
         session_name,
-        allows=[os.getcwd()],
+        allows=[project_root],
         allow_cwd=True,
         system_prompt=prompt_path,
         user_prompt=args.pr_number,
         rollback=rollback,
+        workdir=os.getcwd(),
     )
 
     print(style.success(f"Review session started for PR #{pr_number}") + style.muted(f" ({repo})"))

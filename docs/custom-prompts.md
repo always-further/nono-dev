@@ -1,6 +1,6 @@
 # Custom Prompts
 
-Each sandbox workflow command (`triage`, `fix`, `review`, `feature`) uses a system prompt that instructs the Claude agent on how to behave. nono-dev ships with default prompts, but you can override them per-project.
+Each sandbox workflow command (`triage`, `fix`, `review`, `feature`, `bare`) uses a system prompt that instructs the Claude agent on how to behave. nono-dev ships with default prompts, but you can override them per-project.
 
 ## Overriding Prompts
 
@@ -12,6 +12,7 @@ triage = "prompts/triage.md"
 fix = "prompts/fix.md"
 review = "prompts/review.md"
 feature = "prompts/feature.md"
+bare = "prompts/bare.md"
 ```
 
 Paths are relative to the config file location.

@@ -71,7 +71,7 @@ def add_parser(subparsers):
 
 def _get_managed_worktrees(config):
     """Return managed worktrees and the project root."""
-    project_root = config["_config_dir"]
+    project_root = project_config.get_project_root(config)
     wt_dir = project_config.get_worktree_dir(config)
     abs_wt_dir = os.path.abspath(wt_dir)
 
@@ -265,7 +265,7 @@ def run_start(args):
             print(path)
             return
 
-    repo_root = config["_config_dir"]
+    repo_root = project_config.get_project_root(config)
     graph_line = project_config.graph_path_for_prompt(config, repo_hint=repo_root)
     staleness = project_config.graph_staleness_warning(config, repo_hint=repo_root)
     if staleness:
