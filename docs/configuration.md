@@ -76,3 +76,30 @@ To override the repo explicitly:
 [project]
 repo = "always-further/nono"
 ```
+
+## Sibling Repos and Cross-Repo URLs
+
+The `triage`, `fix`, and `review` commands accept full GitHub URLs as well as plain issue/PR numbers. When a URL points at a different repo than the current worktree — for example, you run `nd fix https://github.com/always-further/nono-py/issues/42` from inside `nono-dev` — the target repo is taken from the URL.
+
+Session and branch names are automatically namespaced to avoid collisions between same-numbered issues across siblings:
+
+| Command                                               | Branch                        | Session            |
+|-------------------------------------------------------|-------------------------------|--------------------|
+| `nd fix 42` (same repo)                               | `issue-42`                    | `fix-42`           |
+| `nd fix https://github.com/.../nono-py/issues/42`     | `xrepo-nono-py-issue-42`      | `fix-nono-py-42`   |
+| `nd triage https://github.com/.../nono-ts/issues/9`   | —                             | `triage-nono-ts-9` |
+| `nd review https://github.com/.../nono-go/pull/3`     | —                             | `review-nono-go-3` |
+
+No configuration is required for this — the `nono-family` repos (`nono`, `nono-ts`, `nono-py`, `nono-go`, `nono-dev`) are referenced by the shipped prompts and recognised by URL.
+
+## VM Resource Defaults
+
+VM sizing is set at VM-creation time via CLI flags on `nd vm create` / `nd vm recreate`, not in `nono-dev.toml`. Current defaults:
+
+| Resource | Default | Flag |
+|----------|---------|------|
+| Disk     | `80GiB` | `--disk` |
+| CPUs     | `4`     | `--cpus` |
+| Memory   | `8GiB`  | `--memory` |
+
+Lima disk images are sparse — only used space is actually written — so picking `--disk 120GiB` for headroom costs nothing up front. Rust target directories, cargo caches, and mutagen indices can consume significant space on longer-lived VMs, so generous sizing is recommended.

@@ -19,19 +19,32 @@ cd nono-dev
 # Install with uv (recommended)
 uv sync
 
-# Or install with pip
-pip install -e .
+# Register the nono-dev command globally AND copy the sandbox profile
+# to ~/.config/nono/profiles/nono-dev.json (required for sandboxed agents
+# to SSH into Lima VMs, access gh, git config, etc.).
+nono-dev install --force
 ```
 
-This makes the `nono-dev` command available globally.
+Two console scripts are registered: `nono-dev` and the shorter alias `nd`. They resolve to the same entry point — use whichever you prefer.
 
 ## Shell Integration
 
-For the `wt` shell function (changes directory into worktrees), add to your `.zshrc` or `.bashrc`:
+Add tab completion and worktree shortcuts to your shell:
 
 ```bash
-eval "$(nono-dev shell-init)"
+nono-dev shell-init --install       # appends the eval to ~/.zshrc (idempotent)
+# or manually:
+echo 'eval "$(nono-dev shell-init)"' >> ~/.zshrc
 ```
+
+This installs:
+
+- `nwt <name>` — cd into a worktree
+- `nwts <name>` — launch a sandbox in a worktree AND cd into it
+- `wt` / `wts` — same as above, but only if you don't already have a `wt` command (e.g. from Worktrunk)
+- Tab completion for `nono-dev` and `nd` (subcommands, session names, worktree branches, VM names, issue numbers)
+
+Restart your shell or `source ~/.zshrc` to load it.
 
 ## Project Configuration
 
@@ -59,7 +72,13 @@ cd /path/to/your/project
 nono-dev triage 42
 ```
 
-This spawns a sandboxed Claude agent that retrieves the issue, performs root cause analysis, and posts a follow-up comment. The agent runs in the background -- attach to it at any time:
+This spawns a sandboxed Claude agent that retrieves the issue, performs root cause analysis, and **drafts** a follow-up comment to `triage-42.md` in the current directory. Review and edit the draft, then post manually with:
+
+```bash
+gh issue comment 42 -R always-further/nono --body-file triage-42.md
+```
+
+The agent runs detached in the background — attach to it at any time:
 
 ```bash
 nono-dev sb attach 42
@@ -76,6 +95,18 @@ This creates a git worktree at `.worktrees/issue-123`, branches from main, and s
 ```bash
 nono-dev fix https://github.com/always-further/nono/issues/123
 ```
+
+### Cross-repo fixes
+
+The nono project spans sibling repos — `nono`, `nono-ts`, `nono-py`, `nono-go`, and this repo `nono-dev`. Passing a URL that points at a sibling creates a namespaced worktree so same-numbered issues don't collide:
+
+```bash
+nono-dev fix https://github.com/always-further/nono-py/issues/42
+# -> worktree .worktrees/xrepo-nono-py-issue-42
+# -> session  fix-nono-py-42
+```
+
+The reserved `xrepo-` prefix on cross-repo branches keeps user-chosen branches like `docs-issue-42` safely classified as feature branches.
 
 ### Review a PR
 
@@ -99,14 +130,15 @@ Creates a worktree and branch, then spawns an agent you can direct interactively
 nono-dev sb status
 ```
 
-Shows a dashboard of all worktrees and active sessions:
+Shows a dashboard of all worktrees and active sessions. Cross-repo rows appear with a `<slug>#<N>` prefix in the ISSUE/PR column:
 
 ```
-NAME              PATH                    TYPE    ISSUE/PR  SESSION  STATUS   ATTACH    AGE    CHANGES
-issue-42          .worktrees/issue-42     fix     #42       82984b   running  detached  2h30m  +34 -12
-issue-123         .worktrees/issue-123    fix     #123      a1b2c3   running  attached  15m    +0 -0
-my-new-feature    .worktrees/my-feature   feature -         d4e5f6   running  detached  1h     +15 -3
-triage-42         -                       triage  #42       f7a8b9   running  detached  5m     -
+PROJECT            NAME                           PATH                                   TYPE    ISSUE/PR     SESSION  STATUS   ATTACH    AGE    CHANGES
+always-further/nono issue-42                      .worktrees/issue-42                    fix     #42          82984b   running  detached  2h30m  +34 -12
+always-further/nono issue-123                     .worktrees/issue-123                   fix     #123         a1b2c3   running  attached  15m    +0 -0
+always-further/nono my-new-feature                .worktrees/my-new-feature              feature my-new-feat  d4e5f6   running  detached  1h     +15 -3
+always-further/nono xrepo-nono-py-issue-42        .worktrees/xrepo-nono-py-issue-42      fix     nono-py#42   e5f6a7   running  detached  10m    +2 -0
+always-further/nono triage-42                     -                                      triage  #42          f7a8b9   running  detached  5m     -
 ```
 
 ## Updating

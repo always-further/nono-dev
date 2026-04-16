@@ -10,7 +10,13 @@ Quickly assess incoming issues without context-switching:
 nono-dev triage 42
 ```
 
-The agent retrieves the issue, searches for duplicates, checks documentation, and posts a follow-up comment. Check on it later:
+The agent retrieves the issue, searches for duplicates across the nono-family repos, checks documentation, and **drafts** a follow-up comment to `triage-42.md` in the current directory. The draft is **not** posted automatically — review/edit it, then post:
+
+```bash
+gh issue comment 42 -R always-further/nono --body-file triage-42.md
+```
+
+Check on the session while it's running:
 
 ```bash
 nono-dev sb attach 42
@@ -42,18 +48,47 @@ Clean up after the PR is merged:
 nono-dev wt cleanup issue-123
 ```
 
+### Cross-repo fixes
+
+If the issue lives in a sibling repo (`nono-py`, `nono-ts`, `nono-go`, etc.), pass the full URL:
+
+```bash
+nono-dev fix https://github.com/always-further/nono-py/issues/42
+```
+
+This creates a **namespaced** worktree and session so a number collision with the core repo can't clash:
+
+- Worktree: `.worktrees/xrepo-nono-py-issue-42`
+- Branch: `xrepo-nono-py-issue-42`
+- Session: `fix-nono-py-42`
+
+A warning is printed noting the worktree is created in the current repo's `.worktrees/` directory rather than in the sibling repo's checkout — for a useful branching base, `cd` into the `nono-py` checkout first.
+
+### Starting a sandbox in an existing worktree
+
+If a worktree already exists (e.g. you branched manually, or you're resuming after cleanup removed an older session), use `wt start` / `wts`:
+
+```bash
+wts issue-123                       # cd in AND start a sandbox
+nono-dev wt start my-feature        # without the shell shortcut
+```
+
+Session naming follows the branch shape: `issue-N` → `fix-N`, `xrepo-<slug>-issue-N` → `fix-<slug>-N`, anything else → `feat-<branch>`. If a matching session is already running, you're pointed at it rather than starting a duplicate.
+
 ## PR Review
 
 Get a thorough review drafted while you work on other things:
 
 ```bash
 nono-dev review 456
+nono-dev review https://github.com/always-further/nono-py/pull/7   # cross-repo
 ```
 
 The agent fetches the diff, reviews for correctness and security, and drafts a comment. Attach to approve or edit before it posts:
 
 ```bash
 nono-dev sb attach 456
+nono-dev sb attach review-nono-py-7       # cross-repo session
 ```
 
 ## Feature Development
@@ -119,10 +154,15 @@ nono-dev sb prune --older-than 7
 With shell integration (`eval "$(nono-dev shell-init)"`):
 
 ```bash
-wt issue-101            # cd into the worktree
-wt 101                  # also works with issue numbers
-wt new-api              # or branch names
+wt issue-101                         # cd into the worktree
+wt 101                               # also works with issue numbers
+wt new-api                           # or branch names
+wt xrepo-nono-py-issue-42            # cross-repo fix branch
+
+wts issue-101                        # cd AND start a sandbox in it
 ```
+
+If you already have a `wt` from Worktrunk or another tool, use `nwt` / `nwts` instead.
 
 Without shell integration:
 
@@ -144,6 +184,37 @@ nono-dev wt cleanup --all
 # Force remove everything
 nono-dev wt cleanup --all --force
 ```
+
+## Running Linux Builds and Tests
+
+Lima VMs let you run Linux-only builds and tests (notably anything using Landlock) against the worktree's files, synced from macOS via mutagen.
+
+```bash
+# Create a VM once (one per project or shared across projects)
+nono-dev vm create --shell-setup
+
+# Open an interactive shell for longer sessions
+nono-dev vm connect
+
+# Run one-off commands from the host OR from inside a sandboxed agent
+nono-dev vm exec -- uname -a
+nono-dev vm exec -- cargo build --release
+nono-dev vm exec --cwd / -- df -h /
+nono-dev vm exec -m linux-gpu -- cargo test --workspace
+```
+
+`vm exec` uses SSH into the VM (via Lima's per-VM `~/.lima/<vm>/ssh.config`), so it works identically from the host shell and from inside an `nd fix` / `nd wt start` sandbox session — the sandbox profile grants exactly enough of `~/.lima` for this to work.
+
+### Switching the synced project
+
+Each VM syncs one host directory at a time. When you switch between worktrees, remount:
+
+```bash
+nono-dev vm mount                                    # see what's synced now
+nono-dev vm mount ~/dev/nono/.worktrees/issue-42     # switch to a different worktree
+```
+
+`wt start` (and `wts`) will prompt you to remount automatically when the target worktree differs from the VM's current sync.
 
 ## Rollback
 
