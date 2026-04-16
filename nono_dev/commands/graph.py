@@ -5,11 +5,18 @@ graph on-disk under ~/.local/share/nono-dev/graphs/<target>/ (per the
 DEFAULT_GRAPH_STORE_ROOT in project_config). The graph is consumable by
 sandboxed agents via the read grant in the nono-dev profile.
 
-graphify writes its outputs to `<cwd>/graphify-out/` by default and has no
---output flag. To keep the target repo untouched, we invoke graphify with
-cwd=<store>/ and pass the repo path as the argument, so graphify's output
-lands at <store>/graphify-out/. Our own manifest.json sits one level up at
-<store>/manifest.json, separating wrapper metadata from graphify's payload.
+graphify resolves its output directory relative to the *target path*
+argument (it writes `<target>/graphify-out/`), not cwd, and exposes no
+--output flag. To keep the per-dev store authoritative without checking
+a `graphify-out/` tree into the target repo, we:
+
+  1. Symlink `<target>/graphify-out` -> `<store>/graphify-out/` before
+     invoking graphify, so its writes land in the store.
+  2. Append `graphify-out` to `<target>/.git/info/exclude` (per-clone,
+     not a tracked .gitignore edit) so `git status` stays clean.
+
+`<store>/manifest.json` (our own metadata file) sits alongside the
+symlink target, separating wrapper metadata from graphify's payload.
 """
 
 import json
@@ -122,16 +129,116 @@ def _graphify_version():
     return "unknown"
 
 
-def _ensure_store_dir(target):
-    """Create the per-target store directory and return its path.
+def _ensure_store_symlink(target):
+    """Wire the target repo's graphify-out to the per-dev store.
 
-    The store is a plain directory outside the target repo. graphify is
-    invoked with cwd=<store>, so its `graphify-out/` payload lands inside
-    the store, not inside the repo.
+    Creates the store dir, symlinks <target>/graphify-out -> <store>/graphify-out,
+    and adds graphify-out to the target repo's per-clone git exclude file
+    so `git status` stays clean. Returns the store path.
+
+    Handles the migration case where `<target>/graphify-out` is an existing
+    real directory (from a previous manual `graphify` invocation): if the
+    store is empty, the directory's contents are moved into the store; if
+    both exist non-empty, we bail rather than guess which is authoritative.
     """
     store = target["store"]
+    repo = target["path"]
     os.makedirs(store, exist_ok=True)
+
+    store_out = os.path.join(store, "graphify-out")
+    link = os.path.join(repo, "graphify-out")
+
+    # Case 1: correct symlink already exists.
+    if os.path.islink(link):
+        if os.path.realpath(link) == os.path.realpath(store_out):
+            return store
+        # Different symlink target -- replace it.
+        os.unlink(link)
+
+    # Case 2: real directory exists in target repo (from a pre-wrapper
+    # graphify run, or a previous failed wrapper build). Try to migrate.
+    elif os.path.isdir(link):
+        store_out_exists = os.path.isdir(store_out) and os.listdir(store_out)
+        if store_out_exists:
+            print(
+                style.error(
+                    f"both {link} (real dir) and {store_out} (store) have "
+                    f"content. Remove one manually so nd graph can continue:\n"
+                    f"  rm -rf {link}          # if the store is authoritative\n"
+                    f"  rm -rf {store_out}     # if the in-repo copy is authoritative"
+                ),
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        # Store empty -- move the in-repo dir into the store, then symlink.
+        print(
+            style.info(
+                f"Migrating existing {link} into {store_out}..."
+            ),
+            file=sys.stderr,
+        )
+        if os.path.isdir(store_out):
+            shutil.rmtree(store_out)
+        shutil.move(link, store_out)
+    elif os.path.exists(link):
+        print(
+            style.error(
+                f"{link} exists and is not a directory or symlink; "
+                f"remove it so nd graph can manage graphify-out."
+            ),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    os.makedirs(store_out, exist_ok=True)
+    if not os.path.islink(link):
+        os.symlink(store_out, link)
+    _ensure_git_excluded(repo, "graphify-out")
     return store
+
+
+def _ensure_git_excluded(repo, entry):
+    """Append `entry` to <repo>/.git/info/exclude if not already present.
+
+    Uses the per-clone exclude file so the symlink doesn't pollute
+    `git status` and doesn't require a tracked .gitignore change. No-op
+    if the repo isn't a git checkout, or the exclude file isn't writable.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            cwd=repo, capture_output=True, text=True, timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return
+    if result.returncode != 0:
+        return
+    git_common = result.stdout.strip()
+    if not git_common or not os.path.isdir(git_common):
+        return
+    info_dir = os.path.join(git_common, "info")
+    exclude_path = os.path.join(info_dir, "exclude")
+
+    try:
+        os.makedirs(info_dir, exist_ok=True)
+        existing = ""
+        if os.path.isfile(exclude_path):
+            with open(exclude_path, encoding="utf-8") as f:
+                existing = f.read()
+        for line in existing.splitlines():
+            if line.strip() == entry:
+                return
+        prefix = "" if existing.endswith("\n") or not existing else "\n"
+        with open(exclude_path, "a", encoding="utf-8") as f:
+            f.write(f"{prefix}{entry}\n")
+    except OSError as exc:
+        print(
+            style.warning(
+                f"could not update {exclude_path}: {exc} -- "
+                f"add '{entry}' to .gitignore or .git/info/exclude manually."
+            ),
+            file=sys.stderr,
+        )
 
 
 def _graphify_out(store):
@@ -289,7 +396,7 @@ def _run_build_or_update(args, *, update):
         print(style.error(f"target path does not exist: {target['path']}"), file=sys.stderr)
         sys.exit(1)
 
-    store = _ensure_store_dir(target)
+    store = _ensure_store_symlink(target)
 
     # `build` is a clean rebuild: wipe graphify's output dir so no stale
     # graph.json, cache entries, or cluster artefacts survive. `update` is
@@ -299,6 +406,7 @@ def _run_build_or_update(args, *, update):
         if os.path.isdir(out_dir):
             try:
                 shutil.rmtree(out_dir)
+                os.makedirs(out_dir, exist_ok=True)
             except OSError as exc:
                 print(
                     style.error(
@@ -324,9 +432,11 @@ def _run_build_or_update(args, *, update):
     print(style.info(f"{'Updating' if update else 'Building'} graph for '{name}' at {target['path']}..."))
     print(style.muted(f"  store: {store}"))
     try:
-        # cwd=store so graphify writes <store>/graphify-out/ instead of
-        # polluting the target repo with a graphify-out/ directory.
-        result = subprocess.run(cmd, cwd=store)
+        # cwd=target: graphify resolves `graphify-out/` relative to the
+        # *target path* (not cwd), so where we run from doesn't actually
+        # matter for output location. We rely on the symlink created by
+        # _ensure_store_symlink to redirect writes into the store.
+        result = subprocess.run(cmd, cwd=target["path"])
     except FileNotFoundError:
         print(style.error("graphify not found on PATH"), file=sys.stderr)
         sys.exit(1)

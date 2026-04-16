@@ -114,7 +114,11 @@ nd graph status
     └── cost.json
 ```
 
-The wrapper invokes `graphify` with `cwd=<store>`, so Graphify's output lands entirely under the store. The target repo is never touched — no symlinks, no `graphify-out/` entry, no `.git/info/exclude` edits. Deletions can be as blunt as `rm -rf ~/.local/share/nono-dev/graphs/<target>/`.
+Graphify resolves its output directory relative to the target-path argument (it writes `<target>/graphify-out/`) and has no `--output` flag, so the wrapper redirects those writes into the store via a symlink. On first build, `<target>/graphify-out` becomes a symlink to `<store>/graphify-out/`, and `graphify-out` is added to `<target>/.git/info/exclude` (a per-clone exclude file that isn't tracked) so `git status` stays clean.
+
+If you already have a real `<target>/graphify-out/` directory from a previous manual `graphify` run, `nd graph build` will migrate its contents into the store on first run (only when the store side is empty). If both sides have content, the build bails and asks you to pick which is authoritative.
+
+Deletions can be as blunt as `rm -rf ~/.local/share/nono-dev/graphs/<target>/` — the symlink in the target repo will then dangle until the next build recreates it.
 
 Each target is fully isolated. There is no cross-target dedup (Graphify's cache is content-hashed per output dir) and no cross-target query (`nd graph query` runs against exactly one `graph.json`).
 

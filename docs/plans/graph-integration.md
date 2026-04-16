@@ -85,13 +85,21 @@ path = "/Users/scp/dev/nono-repos/nono"
     └── cost.json
 ```
 
-Rationale: XDG-ish, outside the target repo, per-target directory. graphify
-has no `--output` flag, so the wrapper invokes it with `cwd=<store>` and
-lets it write its hardcoded `graphify-out/` subdirectory inside the store.
-Our own `manifest.json` sits one level above, separating wrapper metadata
-from graphify's payload. The target repo is never touched -- no symlinks,
-no `graphify-out/` entry, no `.git/info/exclude` edits. Survives
-`git clean -fdx` trivially.
+Rationale: XDG-ish, outside the target repo, per-target directory.
+Graphify resolves its output directory relative to the *target path*
+argument (it writes `<target>/graphify-out/`), and has no `--output`
+flag. `cwd` does not override this. To keep the store authoritative
+without checking `graphify-out/` into the target repo, the wrapper:
+
+1. Symlinks `<target>/graphify-out` -> `<store>/graphify-out/` before
+   invoking graphify, so its writes land in the store.
+2. Appends `graphify-out` to `<target>/.git/info/exclude` (per-clone,
+   not a tracked `.gitignore` edit) so `git status` stays clean.
+
+Existing real `<target>/graphify-out/` directories (from a pre-wrapper
+`graphify` invocation) are migrated into the store on first build when
+the store side is empty; otherwise the wrapper bails so the user can
+resolve authoritatively.
 
 ---
 
