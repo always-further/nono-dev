@@ -19,3 +19,20 @@ enabled = false                    # enable nono rollback snapshots (default: fa
 # fix = "prompts/fix.md"
 # review = "prompts/review.md"
 # feature = "prompts/feature.md"
+
+# Graphify knowledge-graph targets. Each [graphs.<name>] section declares
+# a repo to index. Runs `nd graph build|update|query|explain|path|status`
+# resolve targets by <name>. Build outputs land under:
+#   ~/.local/share/nono-dev/graphs/<name>/
+# (override with `store`).
+# [graphs.nono]
+# path = "~/dev/nono-repos/nono"
+# store = "~/.local/share/nono-dev/graphs/nono"
+# extra_args = []
+
+# Reserved for a future shared-cache backend (S3 / git / HTTP). No
+# backend is implemented yet; the section shape is fixed so adding one
+# later is additive rather than breaking.
+# [graphs.cache_sync]
+# backend = "s3"
+# bucket = "..."

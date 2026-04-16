@@ -271,6 +271,72 @@ Requires `GEMINI_API_KEY` or `GOOGLE_API_KEY` set in your environment.
 
 ---
 
+## `graph` -- Knowledge Graph Management
+
+Wraps [Graphify](https://github.com/graphify-ai/graphify) to build, query, and inspect a per-developer knowledge graph of one or more target repositories. See [Knowledge Graph](graph.md) for concepts, configuration, and the agent integration.
+
+### `graph build`
+
+Clean rebuild of the graph for a configured target. Wipes any existing graph, cache, and cluster state under the store, then re-extracts from scratch.
+
+```bash
+nono-dev graph build              # only if exactly one target is configured
+nono-dev graph build nono
+```
+
+Errors if multiple targets are configured and no name is given. Warns if Graphify isn't installed, the profile is missing the read grant, or the binary version differs from the one recorded on a previous build.
+
+### `graph update`
+
+Incremental update. Re-extracts changed files and reuses Graphify's semantic cache.
+
+```bash
+nono-dev graph update [target]
+```
+
+### `graph query`
+
+Natural-language BFS (or DFS) traversal of the graph.
+
+```bash
+nono-dev graph query "where is credential injection handled?"
+nono-dev graph query "..." -t nono --dfs --budget 4000
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-t`, `--target` | sole target | Target name when multiple graphs are configured |
+| `--dfs` | off | Depth-first traversal |
+| `--budget N` | `2000` | Cap response at N tokens |
+
+### `graph explain`
+
+Plain-language summary of a node and its neighbors.
+
+```bash
+nono-dev graph explain "handle_reverse_proxy" [-t target]
+```
+
+### `graph path`
+
+Shortest path between two nodes.
+
+```bash
+nono-dev graph path "ReverseProxyCtx" "CapabilitySet" [-t target]
+```
+
+### `graph status`
+
+Dashboard of configured targets with freshness signals.
+
+```bash
+nono-dev graph status
+```
+
+Columns: TARGET, PATH, STORE, BUILT (date), HEAD (short SHA at build), BEHIND (commits from built HEAD to current HEAD), NODES, EDGES, VERSION (flagged on mismatch with the installed Graphify).
+
+---
+
 ## `vm` -- Lima VM Management
 
 ### VM name resolution

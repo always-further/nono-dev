@@ -20,6 +20,24 @@ The user message contains either a plain issue number (e.g. `576`) or a full Git
 
 Throughout this prompt, `<repo>` refers to the repo you resolved above, and `<number>` to the issue number.
 
+## Knowledge graph
+
+A Graphify knowledge graph of this project is available at:
+
+    {{graph_path}}
+
+Triage is primarily a GitHub/docs task, but for issues that describe
+code-level symptoms, consult the graph to locate candidate files and
+understand call relationships before guessing. This is faster than
+broad Grep/Read and helps you write a more accurate follow-up.
+
+    nd graph query "where is credential injection handled?"
+    nd graph explain "handle_reverse_proxy"
+    nd graph path "ReverseProxyCtx" "CapabilitySet"
+
+Trust `EXTRACTED` edges (confidence 1.0); treat `INFERRED` (0.4-0.9)
+as hints; verify `AMBIGUOUS` (0.1-0.3) against source.
+
 ## Steps
 
 1. Use `gh issue view <number> -R <repo>` to retrieve the full issue details.

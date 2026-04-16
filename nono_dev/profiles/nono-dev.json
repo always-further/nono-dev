@@ -8,7 +8,8 @@
     "read": [
       "$HOME/.lima",
       "$HOME/.config/gh",
-      "$HOME/.ssh"
+      "$HOME/.ssh",
+      "$HOME/.local/share/nono-dev/graphs"
     ],
     "allow": [
       "$HOME/.local/bin"

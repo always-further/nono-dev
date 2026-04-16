@@ -75,15 +75,23 @@ path = "/Users/scp/dev/nono-repos/nono"
 
 ```
 ~/.local/share/nono-dev/graphs/<target>/
-├── graph.json
-├── graph.html
-├── GRAPH_REPORT.md
-├── cache/              # graphify's semantic cache (per-file content-hashed)
-├── cost.json
-└── manifest.json
+├── manifest.json           # wrapper metadata: graphify_version, built_at,
+│                           #   built_head, node/edge counts
+└── graphify-out/           # graphify's payload (hardcoded dir name)
+    ├── graph.json
+    ├── graph.html
+    ├── GRAPH_REPORT.md
+    ├── cache/              # semantic cache (per-file content-hashed)
+    └── cost.json
 ```
 
-Rationale: XDG-ish, outside the target repo, per-target directory. Keeps the target repo clean (no `graphify-out/` checked in or ignored); survives `git clean -fdx`.
+Rationale: XDG-ish, outside the target repo, per-target directory. graphify
+has no `--output` flag, so the wrapper invokes it with `cwd=<store>` and
+lets it write its hardcoded `graphify-out/` subdirectory inside the store.
+Our own `manifest.json` sits one level above, separating wrapper metadata
+from graphify's payload. The target repo is never touched -- no symlinks,
+no `graphify-out/` entry, no `.git/info/exclude` edits. Survives
+`git clean -fdx` trivially.
 
 ---
 
@@ -113,10 +121,10 @@ Extend existing system prompts ([nono_dev/prompts/fix.md](../../nono_dev/prompts
 ## Knowledge graph
 
 A Graphify knowledge graph of this project is available at
-`~/.local/share/nono-dev/graphs/<repo>/graph.json`. Before doing
-exploratory Read/Grep/Glob calls, consult the graph to locate
-candidate files, understand call relationships, and surface
-design rationale.
+`~/.local/share/nono-dev/graphs/<repo>/graphify-out/graph.json`.
+Before doing exploratory Read/Grep/Glob calls, consult the graph
+to locate candidate files, understand call relationships, and
+surface design rationale.
 
 Query it via:
   nd graph query "where is credential injection handled?"
@@ -127,7 +135,11 @@ Trust `EXTRACTED` edges (confidence 1.0). Treat `INFERRED`
 (0.4–0.9) as hints. Verify `AMBIGUOUS` (0.1–0.3) against source.
 ```
 
-The exact target-name resolution in the prompt is open (see questions).
+The prompt is a template: `{{graph_path}}` is substituted at session launch
+by `nd fix` / `nd feature` / `nd wt start`, which all know the source repo
+from config or git remote. If no graph is configured/built for the target,
+the placeholder is replaced with a short "no graph available for this repo"
+note so the section degrades gracefully.
 
 ---
 
@@ -171,20 +183,31 @@ Ship order: 1–6 first (CLI works standalone), then 7–8 (agents can use it), 
 
 ---
 
-## Open questions
+## Resolved decisions
 
-- **Target name resolution in prompts.** The prompt sees a worktree path, not a target name. Two options:
-  1. Inject the right graph path into the system prompt at session start (code lookup in `nd fix`/`nd wt start` before the prompt is passed to nono).
-  2. Have the prompt itself tell the agent how to find targets (e.g. "run `nd graph status` to see configured targets"). Less surgical, more flexible.
-  Leaning (1) for `nd fix` / `nd feature` (we know the repo from config), (2) for ad-hoc `nd wt start` cases.
+- **Target name resolution in prompts.** Inject `{{graph_path}}` at session
+  launch for all three commands (`fix`, `feature`, `wt start`). The harness
+  always knows the source repo (config or git remote), so there's no
+  genuinely ad-hoc case. Missing graph → graceful placeholder text.
 
-- **Default target.** Should `nd graph build` with no target build all configured targets, or error? Probably error — one-command-one-action.
+- **Default target for `nd graph build`.** Error if multiple targets
+  configured without `-t`; build the single target if only one. Matches
+  the rule used for query/explain/path — uniform across the group.
+  `--all` can be added later if needed.
 
-- **Graphify version pinning.** `nd graph build` auto-installs graphify if missing, but doesn't upgrade. A schema change in Graphify could silently break everything. Should we record the graphify version in `cost.json` or a new `version.txt` and warn on mismatch?
+- **Graphify version pinning.** Record `graphify --version` in
+  `manifest.json` on build/update. On `build`, `update`, and `status`,
+  compare installed vs recorded and warn on mismatch. Don't block, don't
+  auto-regen. Revisit hard pinning once Graphify ships a breaking change.
 
-- **Staleness signal.** Should `nd graph status` also show the git HEAD at last build vs current HEAD for the target repo, so devs know when their graph is behind? Trivial to add.
+- **Staleness signal.** `nd graph status` shows `built_at`, `built_head`,
+  `current_head`, and `commits_behind` (via
+  `git rev-list built_head..HEAD --count`). Stored in `manifest.json`.
 
-- **Profile reinstall.** Changing the profile requires `nd install --force` to re-copy. Document this in the PR description, or have `nd graph build` verify the profile has the read grant and warn if not.
+- **Profile reinstall.** `nd graph build` preflight verifies the installed
+  sandbox profile contains the graphs read grant. Missing → clear warning
+  telling the user to run `nd install --force`; build proceeds anyway.
+  No implicit profile mutation.
 
 ---
 

@@ -13,6 +13,7 @@ from nono_dev.commands import (
     feature,
     fix,
     git_cmd,
+    graph,
     inspect_cmd,
     install,
     mount,
@@ -60,6 +61,15 @@ def _print_main_help():
 
     print(style.header("  Git Operations") + style.dim("  (nono-dev git ...)"))
     _help_row("git commit", "", "AI-generated conventional commit")
+    print()
+
+    print(style.header("  Knowledge Graph") + style.dim("  (nono-dev graph ...)"))
+    _help_row("graph build", "[target]", "Build the Graphify knowledge graph")
+    _help_row("graph update", "[target]", "Incrementally update the graph")
+    _help_row("graph query", "<question>", "Query the graph")
+    _help_row("graph explain", "<node>", "Explain a node and its neighbors")
+    _help_row("graph path", "<a> <b>", "Shortest path between two nodes")
+    _help_row("graph status", "", "Show targets and freshness")
     print()
 
     print(style.header("  VM Management") + style.dim("  (nono-dev vm ...)"))
@@ -174,6 +184,9 @@ def main():
 
     # git group
     git_cmd.add_parser(subparsers)
+
+    # graph group
+    graph.add_parser(subparsers)
 
     # Utilities
     install.add_parser(subparsers)

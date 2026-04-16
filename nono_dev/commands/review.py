@@ -1,6 +1,7 @@
 """Review a GitHub pull request using a sandboxed Claude agent."""
 
 import os
+import sys
 
 from nono_dev import nono, project_config, style
 
@@ -24,7 +25,14 @@ def run(args):
     config = project_config.load()
     url_repo, pr_number = project_config.parse_github_ref_full(args.pr_number)
     repo = project_config.get_repo(config)
-    prompt_path = project_config.get_prompt_path("review", config)
+    cwd = os.getcwd()
+    graph_line = project_config.graph_path_for_prompt(config, repo_hint=cwd)
+    staleness = project_config.graph_staleness_warning(config, repo_hint=cwd)
+    if staleness:
+        print(style.warning(staleness), file=sys.stderr)
+    prompt_path = project_config.get_rendered_prompt_path(
+        "review", config, substitutions={"graph_path": graph_line},
+    )
     rollback = project_config.get_rollback(config)
     if args.no_rollback:
         rollback["enabled"] = False

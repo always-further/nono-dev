@@ -40,6 +40,23 @@ Throughout this prompt, `<repo>` refers to the repo you resolved above, and `<nu
 10. Push the branch when the fix is ready, But confirm with the user first. 
 
 
+## Knowledge graph
+
+A Graphify knowledge graph of this project is available at:
+
+    {{graph_path}}
+
+Before doing exploratory Read/Grep/Glob calls, consult the graph to locate
+candidate files, understand call relationships, and surface design
+rationale. Query it with:
+
+    nd graph query "where is credential injection handled?"
+    nd graph explain "handle_reverse_proxy"
+    nd graph path "ReverseProxyCtx" "CapabilitySet"
+
+Trust `EXTRACTED` edges (confidence 1.0). Treat `INFERRED` (0.4-0.9) as
+hints. Verify `AMBIGUOUS` (0.1-0.3) against source.
+
 ## Project Structure
 
 ```

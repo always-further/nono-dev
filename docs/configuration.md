@@ -21,6 +21,18 @@ triage = "prompts/triage.md"   # custom system prompt for triage (optional)
 fix = "prompts/fix.md"         # custom system prompt for fix (optional)
 review = "prompts/review.md"   # custom system prompt for review (optional)
 feature = "prompts/feature.md" # custom system prompt for feature (optional)
+
+[graphs.nono]
+path = "~/dev/nono-repos/nono"               # absolute or user-expanded
+# store = "~/.local/share/nono-dev/graphs/nono"  # optional override
+# extra_args = ["--mode", "deep"]                # passed to graphify
+
+[graphs.cache_sync]
+# Reserved for a future shared-cache backend (S3 / git / HTTP).
+# No backend is implemented yet; the section shape is fixed so adding
+# one later is additive rather than breaking.
+# backend = "s3"
+# bucket = "..."
 ```
 
 ## Sections
@@ -65,6 +77,22 @@ Override the default system prompts shipped with nono-dev. Paths are relative to
 | `feature` | System prompt for the `feature` command |
 
 When no override is set, nono-dev uses its built-in prompts. See [Custom Prompts](custom-prompts.md) for guidance on writing your own.
+
+### `[graphs.<name>]`
+
+One section per repository you want to index with Graphify. Targets are resolved by `<name>` on the command line (`nd graph build nono`) and by canonical repo path when nono-dev injects the graph location into agent prompts.
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `path` | Yes | Absolute or user-expanded path to the target repo root. |
+| `store` | No | Override the on-disk graph location. Defaults to `~/.local/share/nono-dev/graphs/<name>/`. |
+| `extra_args` | No | Extra arguments appended to every `graphify update` invocation for this target. |
+
+See [Knowledge Graph](graph.md) for the full build/query/status workflow and storage layout.
+
+### `[graphs.cache_sync]`
+
+Reserved for a future shared-cache backend. No backend ships today; the section exists so that adding one later is additive. Leave it commented out unless you're wiring up a backend yourself.
 
 ## Minimal Configuration
 

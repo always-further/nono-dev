@@ -65,4 +65,5 @@ nav:
   - Configuration: configuration.md
   - Commands: commands.md
   - Workflows: workflows.md
+  - Knowledge Graph: graph.md
   - Custom Prompts: custom-prompts.md

@@ -1,6 +1,7 @@
 """Start a new feature in a sandboxed worktree."""
 
 import os
+import sys
 
 from nono_dev import nono, project_config, style, worktree
 
@@ -22,7 +23,14 @@ def add_parser(subparsers):
 def run(args):
     nono.check_installed()
     config = project_config.load()
-    prompt_path = project_config.get_prompt_path("feature", config)
+    repo_root = os.getcwd()
+    graph_line = project_config.graph_path_for_prompt(config, repo_hint=repo_root)
+    staleness = project_config.graph_staleness_warning(config, repo_hint=repo_root)
+    if staleness:
+        print(style.warning(staleness), file=sys.stderr)
+    prompt_path = project_config.get_rendered_prompt_path(
+        "feature", config, substitutions={"graph_path": graph_line},
+    )
     rollback = project_config.get_rollback(config)
     if args.no_rollback:
         rollback["enabled"] = False
@@ -52,7 +60,6 @@ def run(args):
     # Grant read access to the main repo so Claude's Read/Edit tools
     # can follow symlinks from the worktree back to the canonical paths.
     # Grant write access to .git/ for commits, index, refs, objects.
-    repo_root = os.getcwd()
     git_dir = os.path.join(repo_root, ".git")
 
     session_id = nono.run_detached(

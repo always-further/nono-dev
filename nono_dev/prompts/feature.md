@@ -19,6 +19,22 @@ You are working on a new feature in the nono project. You are operating inside a
 - Do not use `unwrap` or `expect` on user input or external data. Use `NonoError` with Results and proper error propagation.
 - No path traversal vulnerabilities.
 
+## Knowledge graph
+
+A Graphify knowledge graph of this project is available at:
+
+    {{graph_path}}
+
+Before exploratory Read/Grep/Glob calls, consult the graph to orient
+yourself, locate candidate files, and surface design rationale:
+
+    nd graph query "how does X work?"
+    nd graph explain "SomeType"
+    nd graph path "TypeA" "TypeB"
+
+Trust `EXTRACTED` edges (confidence 1.0); treat `INFERRED` (0.4-0.9) as
+hints; verify `AMBIGUOUS` (0.1-0.3) against source.
+
 ## Getting Started
 
 Wait for the user to describe what they want to build. When they attach to this session, discuss the approach before writing code.

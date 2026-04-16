@@ -216,6 +216,37 @@ nono-dev vm mount ~/dev/nono/.worktrees/issue-42     # switch to a different wor
 
 `wt start` (and `wts`) will prompt you to remount automatically when the target worktree differs from the VM's current sync.
 
+## Graph-Aware Fix and Feature
+
+If you've configured a [knowledge graph](graph.md) for the target repo, `nd fix`, `nd feature`, `nd review`, and `nd wt start` automatically inject the graph's absolute path into the agent's system prompt. Before any exploratory Read/Grep/Glob pass, the agent can traverse the graph to orient itself.
+
+First-time setup (per repo, per developer):
+
+```bash
+uv tool install graphifyy   # once, host-side
+nd install --force          # pick up the profile read grant
+# Add [graphs.<name>] to nono-dev.toml, then:
+nd graph build <name>
+```
+
+Day-to-day:
+
+```bash
+nd graph update <name>      # after pulling new commits on the target repo
+nd graph status             # check BEHIND column before starting a big session
+nd fix 123                  # agent's prompt now knows where graph.json lives
+```
+
+Interactively check what the graph knows without launching a session:
+
+```bash
+nd graph query "where is credential injection handled?"
+nd graph explain "handle_reverse_proxy"
+nd graph path "ReverseProxyCtx" "CapabilitySet"
+```
+
+See [Knowledge Graph](graph.md) for the full reference.
+
 ## Rollback
 
 All sessions run with nono's rollback enabled by default. If an agent makes unwanted changes, nono's snapshot system lets you restore the previous state:

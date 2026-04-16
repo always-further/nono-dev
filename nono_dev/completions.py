@@ -50,6 +50,23 @@ def get_completions(words):
             prefix = words[1] if len(words) == 2 else ""
             return [s for s in subs if s.startswith(prefix)]
 
+    if cmd == "graph":
+        subs = ["build", "update", "query", "explain", "path", "status"]
+        if len(words) <= 2:
+            prefix = words[1] if len(words) == 2 else ""
+            return [s for s in subs if s.startswith(prefix)]
+        if words[1] in ("build", "update"):
+            prefix = words[2] if len(words) >= 3 else ""
+            return [t for t in _graph_targets() if t.startswith(prefix)]
+        # -t <TAB> for query/explain/path
+        last_flag = None
+        for i, w in enumerate(words[:-1]):
+            if w in ("-t", "--target"):
+                last_flag = i
+        if last_flag is not None and last_flag == len(words) - 2:
+            prefix = words[-1]
+            return [t for t in _graph_targets() if t.startswith(prefix)]
+
     if cmd in ("fix", "triage", "review"):
         return _issue_numbers()
 
@@ -62,8 +79,18 @@ def get_completions(words):
 def _top_level():
     return [
         "triage", "fix", "review", "feature",
-        "vm", "sb", "wt", "git", "shell-init", "dotfiles",
+        "vm", "sb", "wt", "git", "graph", "shell-init", "dotfiles",
     ]
+
+
+def _graph_targets():
+    """Read configured graph target names from nono-dev.toml."""
+    try:
+        from nono_dev import project_config
+        config = project_config.load()
+        return sorted(project_config.get_graph_targets(config).keys())
+    except Exception:
+        return []
 
 
 def _session_names():
