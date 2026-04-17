@@ -15,6 +15,7 @@ from nono_dev.commands import (
     fix,
     git_cmd,
     graph,
+    init,
     inspect_cmd,
     install,
     mount,
@@ -85,6 +86,7 @@ def _print_main_help():
     print()
 
     print(style.header("  Utilities"))
+    _help_row("init", "[-y] [--force]", "Create nono-dev.toml at the repository root")
     _help_row("install", "[--force]", "Install nono-dev globally via uv tool")
     _help_row("shell-init", "", "Print shell functions for .zshrc")
     _help_row("dotfiles", "[--force]", "Deploy shipped dotfiles to local machine")
@@ -192,6 +194,7 @@ def main():
     graph.add_parser(subparsers)
 
     # Utilities
+    init.add_parser(subparsers)
     install.add_parser(subparsers)
     shell_init.add_parser(subparsers)
     dotfiles.add_parser(subparsers)
