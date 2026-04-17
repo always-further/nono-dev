@@ -93,28 +93,33 @@ def get_repo(config):
 
 
 def _repo_from_git_remote():
-    """Derive org/repo from the git remote origin URL."""
+    """Derive org/repo from git remote, preferring upstream over origin.
+
+    Forks typically have 'upstream' pointing at the canonical repo where
+    issues and PRs live, and 'origin' pointing at the user's fork.
+    """
     import re
     import subprocess
 
-    result = subprocess.run(
-        ["git", "remote", "get-url", "origin"],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        return None
+    for remote in ("upstream", "origin"):
+        result = subprocess.run(
+            ["git", "remote", "get-url", remote],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            continue
 
-    url = result.stdout.strip()
+        url = result.stdout.strip()
 
-    # SSH: git@github.com:org/repo.git
-    m = re.match(r"git@[^:]+:(.+?)(?:\.git)?$", url)
-    if m:
-        return m.group(1)
+        # SSH: git@github.com:org/repo.git
+        m = re.match(r"git@[^:]+:(.+?)(?:\.git)?$", url)
+        if m:
+            return m.group(1)
 
-    # HTTPS: https://github.com/org/repo.git
-    m = re.match(r"https?://[^/]+/(.+?)(?:\.git)?$", url)
-    if m:
-        return m.group(1)
+        # HTTPS: https://github.com/org/repo.git
+        m = re.match(r"https?://[^/]+/(.+?)(?:\.git)?$", url)
+        if m:
+            return m.group(1)
 
     return None
 
@@ -334,11 +339,15 @@ def get_graph_targets(config):
             )
 
         extra_args = list(raw.get("extra_args", []) or [])
+        repo = raw.get("repo")  # explicit GitHub org/repo override
+        ingest = bool(raw.get("ingest", False))
 
         targets[name] = {
             "path": os.path.abspath(path),
             "store": os.path.abspath(store),
             "extra_args": extra_args,
+            "repo": repo,
+            "ingest": ingest,
         }
     return targets
 

@@ -26,7 +26,12 @@ Throughout this prompt, `<repo>` refers to the repo you resolved above, and `<nu
 ## Steps
 
 1. Use `gh issue view <number> -R <repo>` to retrieve the full issue details.
-2. Analyze the codebase to understand the root cause. Read relevant source files, trace the code paths involved, and identify where the bug or missing feature lives.
+2. **Query the graph first.** Before reading code or searching GitHub, use the knowledge graph to orient yourself:
+   - `nd graph query "<summary of the issue symptoms>"` — finds related issues, PRs, and code in one local lookup.
+   - `nd graph explain "SomeModule"` — understand a module's role and connections.
+   - `nd graph path "Issue #<related>" "SomeType"` — trace how a past issue connects to the code area.
+   The graph contains ingested issues and PRs alongside code, so related issue searches and code location are often answered here without API calls or broad file reads.
+3. Analyze the codebase to understand the root cause. Read relevant source files, trace the code paths involved, and identify where the bug or missing feature lives.
 3. If more information is required first, construct a friendly human sounding comment that can be posted to the issue to gain more context and information. Before posting, ask the user if they are okay to proceed with you posting the issue. 
 4. Implement the fix:
    - Make minimal, focused changes that address the issue.

@@ -41,8 +41,13 @@ as hints; verify `AMBIGUOUS` (0.1-0.3) against source.
 ## Steps
 
 1. Use `gh issue view <number> -R <repo>` to retrieve the full issue details.
-2. Analyze the issue:
-   - Is this a duplicate of an existing issue in `<repo>`? Search with `gh issue list -R <repo> --search "<keywords>"`.
+2. **Query the graph first.** Before searching GitHub, use the knowledge graph to find related issues, PRs, and code:
+   - `nd graph query "<summary of the issue symptoms>"` — finds related issues, PRs, and code in one local lookup.
+   - `nd graph explain "Issue #<number>"` — if the issue is already in the graph, shows its connections.
+   - `nd graph path "Issue #<related>" "SomeModule"` — traces how a past issue connects to the code area.
+   The graph contains ingested issues and PRs alongside code, so duplicate/related issue searches are often answered here without any API calls.
+3. Analyze the issue:
+   - Is this a duplicate of an existing issue? Check graph results first, then confirm with `gh issue list -R <repo> --search "<keywords>"` for anything the graph may have missed (e.g. issues filed after the last ingest).
    - Could this issue actually belong to one of the sibling repos (e.g. a bug reported on `nono` that's really in `nono-py`)? If the symptoms point elsewhere, search the relevant sibling with `gh issue list -R always-further/<sibling> --search "<keywords>"` and mention the redirection in your draft.
    - Is there an existing solution in the documentation? Check https://nono.sh/docs for relevant pages.
    - Does the issue need more information from the reporter (OS, language/SDK version, nono version, reproduction steps, logs)?

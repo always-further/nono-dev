@@ -42,6 +42,7 @@ def _graph_help(_args):
     print(f"    {style.value('graph query'):<40} {style.muted('<question>')}      {style.dim('Query the graph (BFS traversal)')}")
     print(f"    {style.value('graph explain'):<40} {style.muted('<node>')}          {style.dim('Explain a node and its neighbors')}")
     print(f"    {style.value('graph path'):<40} {style.muted('<a> <b>')}         {style.dim('Shortest path between two nodes')}")
+    print(f"    {style.value('graph ingest'):<40} {style.muted('[target]')}       {style.dim('Fetch GitHub issues/PRs into the graph corpus')}")
     print(f"    {style.value('graph status'):<40}                 {style.dim('Show configured targets and freshness')}")
     print()
     sys.exit(0)
@@ -55,11 +56,15 @@ def add_parser(subparsers):
     # graph build
     build_parser = graph_sub.add_parser("build", help="Build the knowledge graph for a target")
     build_parser.add_argument("target", nargs="?", default=None, help="Target name (from [graphs.<name>])")
+    build_parser.add_argument("--no-ingest", action="store_true", dest="no_ingest",
+                              help="Skip auto-ingest even if configured")
     build_parser.set_defaults(func=run_build)
 
     # graph update
     update_parser = graph_sub.add_parser("update", help="Incrementally update the graph")
     update_parser.add_argument("target", nargs="?", default=None)
+    update_parser.add_argument("--no-ingest", action="store_true", dest="no_ingest",
+                               help="Skip auto-ingest even if configured")
     update_parser.set_defaults(func=run_update)
 
     # graph query
@@ -82,6 +87,14 @@ def add_parser(subparsers):
     path_parser.add_argument("b", help="Destination node label")
     path_parser.add_argument("-t", "--target", default=None)
     path_parser.set_defaults(func=run_path)
+
+    # graph ingest
+    ingest_parser = graph_sub.add_parser("ingest", help="Fetch GitHub issues and PRs into the graph corpus")
+    ingest_parser.add_argument("target", nargs="?", default=None, help="Target name")
+    ingest_parser.add_argument("--limit", type=int, default=None, help="Max issues/PRs to fetch (default: all)")
+    ingest_parser.add_argument("--no-files", action="store_true", dest="no_files",
+                               help="Skip fetching files changed per PR")
+    ingest_parser.set_defaults(func=run_ingest)
 
     # graph status
     status_parser = graph_sub.add_parser("status", help="Show targets and freshness")
@@ -394,6 +407,13 @@ def _run_build_or_update(args, *, update):
     if update:
         _warn_version_mismatch(target["store"])
 
+    # Auto-ingest if configured, unless --no-ingest
+    if target.get("ingest") and not getattr(args, "no_ingest", False):
+        import argparse as _ap
+        ingest_args = _ap.Namespace(target=args.target, limit=None, no_files=False)
+        run_ingest(ingest_args)
+        print()
+
     if not os.path.isdir(target["path"]):
         print(style.error(f"target path does not exist: {target['path']}"), file=sys.stderr)
         sys.exit(1)
@@ -551,6 +571,287 @@ def run_status(_args):
     for row in rows:
         line = "  ".join(_pad_visible(cell, widths[i]) for i, cell in enumerate(row))
         print(line)
+
+
+# -- ingest: GitHub issues + PRs into the graph corpus ----------------------
+
+INGEST_DIR_NAME = ".nono-dev/github"
+
+
+def _detect_github_repo(repo_path):
+    """Derive org/repo from git remote in a directory.
+
+    Prefers 'upstream' over 'origin' so forks automatically resolve
+    to the canonical repo where issues and PRs live.
+    """
+    import re as _re
+    for remote in ("upstream", "origin"):
+        try:
+            result = subprocess.run(
+                ["git", "remote", "get-url", remote],
+                capture_output=True, text=True, cwd=repo_path,
+            )
+            if result.returncode != 0:
+                continue
+            url = result.stdout.strip()
+            m = _re.match(r"git@[^:]+:(.+?)(?:\.git)?$", url)
+            if m:
+                return m.group(1)
+            m = _re.match(r"https?://[^/]+/(.+?)(?:\.git)?$", url)
+            if m:
+                return m.group(1)
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return None
+
+
+def _gh_json(cmd):
+    """Run a gh command that returns JSON, return parsed list."""
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(style.error(f"gh failed: {result.stderr.strip()}"), file=sys.stderr)
+        sys.exit(1)
+    return json.loads(result.stdout)
+
+
+def _fetch_issues(repo, limit=None, since=None):
+    """Fetch issues (open + closed) from a GitHub repo."""
+    lim = str(limit) if limit else "9999"
+    cmd = [
+        "gh", "issue", "list", "-R", repo,
+        "--state", "all", "--limit", lim,
+        "--json", "number,title,body,state,labels,comments,assignees,author,createdAt,closedAt",
+    ]
+    if since:
+        cmd.extend(["--search", f"updated:>{since}"])
+    return _gh_json(cmd)
+
+
+def _fetch_prs(repo, limit=None, since=None):
+    """Fetch PRs (open + closed + merged) from a GitHub repo."""
+    lim = str(limit) if limit else "9999"
+    cmd = [
+        "gh", "pr", "list", "-R", repo,
+        "--state", "all", "--limit", lim,
+        "--json", "number,title,body,state,labels,comments,author,createdAt,mergedAt,closedAt,baseRefName,headRefName",
+    ]
+    if since:
+        cmd.extend(["--search", f"updated:>{since}"])
+    return _gh_json(cmd)
+
+
+def _fetch_pr_files(repo, pr_number):
+    """Fetch files changed in a PR via the REST API."""
+    try:
+        result = subprocess.run(
+            ["gh", "api", f"repos/{repo}/pulls/{pr_number}/files",
+             "--paginate", "--jq", ".[].filename"],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            return [f.strip() for f in result.stdout.strip().splitlines() if f.strip()]
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return []
+
+
+def _format_issue_md(issue):
+    """Format a GitHub issue as rich markdown for graphify extraction."""
+    n = issue["number"]
+    title = issue.get("title", "")
+    state = issue.get("state", "OPEN")
+    body = issue.get("body") or ""
+    author = issue.get("author", {}).get("login", "unknown")
+    created = (issue.get("createdAt") or "")[:10]
+    closed = (issue.get("closedAt") or "")[:10]
+    labels = ", ".join(l["name"] for l in issue.get("labels", []))
+    assignees = ", ".join(a["login"] for a in issue.get("assignees", []))
+
+    lines = [
+        f"# Issue #{n}: {title}",
+        "",
+        f"- **State:** {state}",
+        f"- **Author:** @{author}",
+        f"- **Created:** {created}",
+    ]
+    if closed:
+        lines.append(f"- **Closed:** {closed}")
+    if labels:
+        lines.append(f"- **Labels:** {labels}")
+    if assignees:
+        lines.append(f"- **Assignees:** {assignees}")
+
+    lines.extend(["", "## Description", "", body])
+
+    comments = issue.get("comments", [])
+    if comments:
+        lines.extend(["", "## Comments", ""])
+        for c in comments:
+            c_author = c.get("author", {}).get("login", "unknown")
+            c_created = (c.get("createdAt") or "")[:10]
+            c_body = c.get("body") or ""
+            lines.extend([f"### @{c_author} ({c_created})", "", c_body, ""])
+
+    return "\n".join(lines) + "\n"
+
+
+def _format_pr_md(pr, files=None):
+    """Format a GitHub PR as rich markdown for graphify extraction."""
+    n = pr["number"]
+    title = pr.get("title", "")
+    state = pr.get("state", "OPEN")
+    body = pr.get("body") or ""
+    author = pr.get("author", {}).get("login", "unknown")
+    created = (pr.get("createdAt") or "")[:10]
+    merged = (pr.get("mergedAt") or "")[:10]
+    closed = (pr.get("closedAt") or "")[:10]
+    labels = ", ".join(l["name"] for l in pr.get("labels", []))
+    base = pr.get("baseRefName", "")
+    head = pr.get("headRefName", "")
+
+    lines = [
+        f"# PR #{n}: {title}",
+        "",
+        f"- **State:** {state}",
+        f"- **Author:** @{author}",
+        f"- **Created:** {created}",
+    ]
+    if merged:
+        lines.append(f"- **Merged:** {merged}")
+    elif closed:
+        lines.append(f"- **Closed:** {closed}")
+    if labels:
+        lines.append(f"- **Labels:** {labels}")
+    if base and head:
+        lines.append(f"- **Branch:** {head} → {base}")
+
+    lines.extend(["", "## Description", "", body])
+
+    if files:
+        lines.extend(["", "## Files Changed", ""])
+        for f in files:
+            lines.append(f"- `{f}`")
+
+    comments = pr.get("comments", [])
+    if comments:
+        lines.extend(["", "## Comments", ""])
+        for c in comments:
+            c_author = c.get("author", {}).get("login", "unknown")
+            c_created = (c.get("createdAt") or "")[:10]
+            c_body = c.get("body") or ""
+            lines.extend([f"### @{c_author} ({c_created})", "", c_body, ""])
+
+    return "\n".join(lines) + "\n"
+
+
+def _ingest_meta_path(ingest_dir):
+    return os.path.join(ingest_dir, ".ingest_meta.json")
+
+
+def _read_ingest_meta(ingest_dir):
+    path = _ingest_meta_path(ingest_dir)
+    if os.path.isfile(path):
+        with open(path) as f:
+            return json.load(f)
+    return {}
+
+
+def _write_ingest_meta(ingest_dir, meta):
+    path = _ingest_meta_path(ingest_dir)
+    with open(path, "w") as f:
+        json.dump(meta, f, indent=2)
+        f.write("\n")
+
+
+def run_ingest(args):
+    config = project_config.load()
+    name, target = project_config.resolve_graph_target(config, args.target)
+    target_path = target["path"]
+
+    github_repo = target.get("repo") or _detect_github_repo(target_path)
+    if not github_repo:
+        print(style.error(f"cannot detect GitHub repo from git remote in {target_path}"), file=sys.stderr)
+        print(style.dim(f"  Set 'repo' in [graphs.{name}] to specify it explicitly."), file=sys.stderr)
+        sys.exit(1)
+
+    if not shutil.which("gh"):
+        print(style.error("'gh' CLI not found. Install it: https://cli.github.com"), file=sys.stderr)
+        sys.exit(1)
+
+    ingest_dir = os.path.join(target_path, INGEST_DIR_NAME)
+    issues_dir = os.path.join(ingest_dir, "issues")
+    prs_dir = os.path.join(ingest_dir, "prs")
+    os.makedirs(issues_dir, exist_ok=True)
+    os.makedirs(prs_dir, exist_ok=True)
+
+    # Exclude from git
+    _ensure_git_excluded(target_path, ".nono-dev/")
+
+    # Differential: only fetch items updated since last ingest
+    meta = _read_ingest_meta(ingest_dir)
+    since = meta.get("last_ingest")
+    mode = "incremental" if since else "full"
+
+    print(style.info(f"Ingesting GitHub data for '{name}' from {github_repo}..."))
+    if since:
+        print(style.muted(f"  incremental: updated since {since}"))
+    print()
+
+    # Fetch issues
+    print(f"  {style.label('issues:')}    fetching...", end="", flush=True)
+    issues = _fetch_issues(github_repo, limit=args.limit, since=since)
+    print(f"\r  {style.label('issues:')}    {len(issues)} {'updated' if since else 'fetched'}")
+
+    for issue in issues:
+        md = _format_issue_md(issue)
+        path = os.path.join(issues_dir, f"issue-{issue['number']}.md")
+        with open(path, "w") as f:
+            f.write(md)
+
+    # Fetch PRs
+    print(f"  {style.label('PRs:')}       fetching...", end="", flush=True)
+    prs = _fetch_prs(github_repo, limit=args.limit, since=since)
+    print(f"\r  {style.label('PRs:')}       {len(prs)} {'updated' if since else 'fetched'}")
+
+    pr_file_count = 0
+    if not args.no_files and prs:
+        print(f"  {style.label('PR files:')}  fetching...", end="", flush=True)
+        for i, pr in enumerate(prs, 1):
+            files = _fetch_pr_files(github_repo, pr["number"])
+            md = _format_pr_md(pr, files=files)
+            path = os.path.join(prs_dir, f"pr-{pr['number']}.md")
+            with open(path, "w") as f:
+                f.write(md)
+            pr_file_count += len(files)
+            if i % 10 == 0:
+                print(f"\r  {style.label('PR files:')}  {i}/{len(prs)}...", end="", flush=True)
+        print(f"\r  {style.label('PR files:')}  {pr_file_count} files across {len(prs)} PRs")
+    else:
+        for pr in prs:
+            md = _format_pr_md(pr)
+            path = os.path.join(prs_dir, f"pr-{pr['number']}.md")
+            with open(path, "w") as f:
+                f.write(md)
+
+    # Update timestamp
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    meta["last_ingest"] = now
+    meta["repo"] = github_repo
+    meta["issue_count"] = meta.get("issue_count", 0) if since else 0
+    meta["issue_count"] += len(issues)
+    meta["pr_count"] = meta.get("pr_count", 0) if since else 0
+    meta["pr_count"] += len(prs)
+    _write_ingest_meta(ingest_dir, meta)
+
+    # Summary
+    print()
+    total_issues = meta["issue_count"]
+    total_prs = meta["pr_count"]
+    if since:
+        print(style.success(f"Updated {len(issues)} issues + {len(prs)} PRs (total on disk: {total_issues} + {total_prs})"))
+    else:
+        print(style.success(f"Ingested {len(issues)} issues + {len(prs)} PRs into {ingest_dir}"))
+    print(f"  {style.label('next:')}  run {style.value(f'nd graph build {name}')} to index code + issues + PRs together")
 
 
 def _strip_ansi(s):

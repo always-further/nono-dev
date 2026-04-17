@@ -46,23 +46,24 @@ def _ask_yn(prompt, default=True, auto=False):
 
 
 def _detect_repo():
-    """Derive org/repo from git remote origin, or None."""
-    try:
-        result = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
-            capture_output=True, text=True,
-        )
-        if result.returncode != 0:
-            return None
-        url = result.stdout.strip()
-        m = re.match(r"git@[^:]+:(.+?)(?:\.git)?$", url)
-        if m:
-            return m.group(1)
-        m = re.match(r"https?://[^/]+/(.+?)(?:\.git)?$", url)
-        if m:
-            return m.group(1)
-    except (OSError, subprocess.SubprocessError):
-        pass
+    """Derive org/repo from git remote, preferring upstream over origin."""
+    for remote in ("upstream", "origin"):
+        try:
+            result = subprocess.run(
+                ["git", "remote", "get-url", remote],
+                capture_output=True, text=True,
+            )
+            if result.returncode != 0:
+                continue
+            url = result.stdout.strip()
+            m = re.match(r"git@[^:]+:(.+?)(?:\.git)?$", url)
+            if m:
+                return m.group(1)
+            m = re.match(r"https?://[^/]+/(.+?)(?:\.git)?$", url)
+            if m:
+                return m.group(1)
+        except (OSError, subprocess.SubprocessError):
+            continue
     return None
 
 
@@ -73,13 +74,13 @@ def _repo_short_name(repo):
     return repo.split("/")[-1] if "/" in repo else repo
 
 
-def _build_toml(repo, worktree_dir, rollback, graph_name):
+def _build_toml(repo, worktree_dir, rollback, graph_name, graph_repo=None):
     """Build the toml content from wizard answers."""
     lines = ["# nono-dev configuration", ""]
 
     lines.append("[project]")
     if repo:
-        lines.append(f'# repo = "{repo}"  # auto-detected from git remote')
+        lines.append(f'repo = "{repo}"')
     else:
         lines.append('# repo = "org/repo"  # set manually or add a git remote')
     lines.append("")
@@ -91,8 +92,8 @@ def _build_toml(repo, worktree_dir, rollback, graph_name):
     lines.append("[rollback]")
     lines.append(f"enabled = {'true' if rollback else 'false'}")
     if rollback:
-        lines.append('# dest = "~/.nono/rollbacks"')
-        lines.append('# exclude = [".git", "node_modules"]')
+        lines.append('dest = "~/.nono/rollbacks"')
+        lines.append('exclude = [".git", "node_modules", ".worktrees", "graphify-out", ".nono-dev"]')
     lines.append("")
 
     lines.append("[prompts]")
@@ -106,6 +107,9 @@ def _build_toml(repo, worktree_dir, rollback, graph_name):
     if graph_name:
         lines.append(f"[graphs.{graph_name}]")
         lines.append('path = "."')
+        if graph_repo:
+            lines.append(f'repo = "{graph_repo}"')
+        lines.append("ingest = true")
         lines.append("")
 
     return "\n".join(lines) + "\n"
@@ -160,7 +164,10 @@ def run(args):
         repo = _ask("  repo (org/repo, or enter to skip): ", auto=auto) or None
 
     # 2. Worktree dir
-    wt_dir = _ask(f"  {style.label('worktree dir')} [.worktrees]: ", default=".worktrees", auto=auto)
+    if _ask_yn(f"  {style.label('worktree dir')} .worktrees?", default=True, auto=auto):
+        wt_dir = ".worktrees"
+    else:
+        wt_dir = _ask(f"  {style.label('worktree dir:')} ", default=".worktrees", auto=auto)
 
     # 3. Rollback
     rollback = _ask_yn(f"  {style.label('enable rollback?')}", default=False, auto=auto)
@@ -171,7 +178,7 @@ def run(args):
         graph_name = _repo_short_name(repo)
 
     # Preview
-    toml_content = _build_toml(repo, wt_dir, rollback, graph_name)
+    toml_content = _build_toml(repo, wt_dir, rollback, graph_name, graph_repo=repo)
     print()
     print(style.dim("  --- preview ---"))
     for line in toml_content.splitlines():
@@ -190,11 +197,23 @@ def run(args):
     _ensure_git_excluded(repo_root, CONFIG_FILENAME)
     excluded = _is_already_excluded(repo_root, CONFIG_FILENAME)
 
+    # Create .graphifyignore to keep worktrees and other noise out of the graph
+    if graph_name:
+        ignore_path = os.path.join(repo_root, ".graphifyignore")
+        if not os.path.exists(ignore_path):
+            with open(ignore_path, "w") as f:
+                f.write("# Directories to exclude from the knowledge graph\n")
+                f.write(".worktrees/\n")
+            _ensure_git_excluded(repo_root, ".graphifyignore")
+
     # Summary
     print()
     print(style.success(f"{'overwrote' if overwriting else 'created'} {dest}"))
     if graph_name:
         print(f"  {style.label('graph:')}     [graphs.{graph_name}] -> .")
+        ignore_path = os.path.join(repo_root, ".graphifyignore")
+        if os.path.isfile(ignore_path):
+            print(f"  {style.label('ignore:')}    .graphifyignore (excludes .worktrees/)")
     if excluded:
         print(f"  {style.label('git:')}       added '{CONFIG_FILENAME}' to .git/info/exclude")
     next_cmd = f"nd graph build {graph_name}" if graph_name else "nd <command>"

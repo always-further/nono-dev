@@ -51,11 +51,11 @@ def get_completions(words):
             return [s for s in subs if s.startswith(prefix)]
 
     if cmd == "graph":
-        subs = ["build", "update", "query", "explain", "path", "status"]
+        subs = ["build", "update", "query", "explain", "path", "ingest", "status"]
         if len(words) <= 2:
             prefix = words[1] if len(words) == 2 else ""
             return [s for s in subs if s.startswith(prefix)]
-        if words[1] in ("build", "update"):
+        if words[1] in ("build", "update", "ingest"):
             prefix = words[2] if len(words) >= 3 else ""
             return [t for t in _graph_targets() if t.startswith(prefix)]
         # -t <TAB> for query/explain/path

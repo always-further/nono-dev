@@ -72,6 +72,7 @@ def _print_main_help():
     _help_row("graph query", "<question>", "Query the graph")
     _help_row("graph explain", "<node>", "Explain a node and its neighbors")
     _help_row("graph path", "<a> <b>", "Shortest path between two nodes")
+    _help_row("graph ingest", "[target]", "Fetch GitHub issues/PRs into the graph corpus")
     _help_row("graph status", "", "Show targets and freshness")
     print()
 

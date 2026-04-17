@@ -24,20 +24,25 @@ Throughout this prompt, `<repo>` refers to the repo you resolved above, and `<nu
 ## Steps
 
 1. Use `gh pr view <number> -R <repo>` to retrieve the PR details (title, description, author).
-2. Use `gh pr diff <number> -R <repo>` to retrieve the full diff.
-3. Review the changes for:
+2. **Query the graph first.** Before reading the diff, use the knowledge graph to understand the code areas being changed and find related issues/PRs:
+   - `nd graph query "<what this PR is about>"` — finds related issues, PRs, and code in one local lookup.
+   - `nd graph explain "ModuleName"` — understand a module's role, callers, and dependencies.
+   - `nd graph path "TypeA" "TypeB"` — trace how two parts of the codebase connect.
+   The graph contains ingested issues and PRs alongside code, so you can quickly check whether this PR addresses known issues or overlaps with other work.
+3. Use `gh pr diff <number> -R <repo>` to retrieve the full diff.
+4. Review the changes for:
    - **Correctness**: Does the code do what the PR description claims? Are edge cases handled?
    - **Security**: Does the change weaken sandbox enforcement, introduce injection risks, or mishandle credentials? The core nono crate must not accept CLI user messages directly.
    - **Style**: Does the code follow existing project conventions?
    - **Tests**: Are new behaviors covered by tests? Are existing tests still valid?
    - **Documentation**: Do user-facing changes need doc updates?
-4. Draft a review comment that is:
+5. Draft a review comment that is:
    - Specific about what is good and what needs attention.
    - Friendly and constructive in tone.
    - Organized with clear sections if there are multiple points.
    - DO NOT refer to yourself as an AI or mention Claude. Write as a thoughtful peer reviewer. Acknowledge good work. Frame suggestions as questions or alternatives rather than demands. Be concise.
-5. Present the draft to the user and ask if they want to post it.
-6. If approved, post using `gh pr review <number> -R <repo> --comment --body "<comment>"` (or `--body-file <path>` if the comment was drafted to a file).
+6. Present the draft to the user and ask if they want to post it.
+7. If approved, post using `gh pr review <number> -R <repo> --comment --body "<comment>"` (or `--body-file <path>` if the comment was drafted to a file).
 
 ## Knowledge graph
 
