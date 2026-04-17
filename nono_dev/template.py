@@ -47,7 +47,7 @@ def build_lima_config(
 
     # -- Build system provision script --
     # Lima auto-creates a user matching the macOS username with home at
-    # /home/<user>.guest.  We use that user rather than creating our own.
+    # /home/<user>.linux.  We use that user rather than creating our own.
     system_lines = [
         "#!/bin/bash",
         "set -eux",
@@ -69,7 +69,7 @@ def build_lima_config(
 
     # -- Build user provision script --
     # Runs as Lima's default user (matches macOS username).
-    # $HOME is /home/<user>.guest -- all paths use $HOME.
+    # $HOME is /home/<user>.linux -- all paths use $HOME.
     user_lines = [
         "#!/bin/bash",
         "set -eux",
@@ -139,10 +139,10 @@ def _images_for_os(os_name):
 def _shell_setup_system_lines(username, distro):
     """Return provision script lines for shell tool setup.
 
-    Lima's default user home is /home/<username>.guest.
+    Lima's default user home is /home/<username>.linux.
     System-level tools go to /usr/local, dotfiles go to the user's home.
     """
-    home = f"/home/{username}.guest"
+    home = f"/home/{username}.linux"
     lines = [
         "",
         "# -- Shell setup --",

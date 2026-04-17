@@ -38,11 +38,33 @@ nono-dev shell-init
 - `nono_dev/lima.py` -- thin subprocess wrapper around `limactl` CLI commands and mutagen sync
 - `nono_dev/nono.py` -- thin subprocess wrapper around `nono` CLI (run_detached, ps_json, attach)
 - `nono_dev/worktree.py` -- git worktree operations (add, list, remove, diff stats)
-- `nono_dev/project_config.py` -- parse `nono-dev.toml`, resolve prompts, repo detection from git remote
+- `nono_dev/user_config.py` -- loads user-level `~/.config/nono-dev/config.toml` (worktree base dir, Lima home)
+- `nono_dev/project_config.py` -- parse `nono-dev.toml`, merge with user config, resolve prompts, repo detection from git remote
 - `nono_dev/template.py` -- builds Lima instance YAML programmatically (no PyYAML; uses a minimal `_yaml_dump` serializer)
 - `nono_dev/config.py` -- constants: default VM name, OS, base apt packages, VM resource defaults
 - `nono_dev/prompts/` -- shipped system prompt markdown files for each workflow command
 - `nono_dev/dotfiles/` -- shipped dotfiles for `--shell-setup` VMs (.zshrc, .tmux.conf, starship.toml)
+
+### Configuration
+
+Config is loaded in three layers (later overrides earlier):
+
+1. **Hardcoded defaults** -- `project_config.DEFAULTS`
+2. **User config** -- `~/.config/nono-dev/config.toml` (global, applies to all repos)
+3. **Repo config** -- `nono-dev.toml` (per-repo, checked into the codebase)
+
+```toml
+# ~/.config/nono-dev/config.toml
+[worktree]
+dir = "/Volumes/SSD/worktrees"  # repo name auto-appended (e.g. .../worktrees/nono/)
+
+[lima]
+home = "/Volumes/SSD/lima"      # sets LIMA_HOME for limactl
+```
+
+When `worktree.dir` comes from user config and is an absolute path, the repo name (from git remote) is auto-appended to keep projects separated. Repo-level `nono-dev.toml` overrides are used as-is with no auto-append.
+
+Lima home is threaded as `lima_home=None` through all `lima.py` public functions and passed as `LIMA_HOME` env var to `limactl` subprocess calls.
 
 ### Sandbox workflow flow
 
@@ -80,3 +102,5 @@ Files live on ext4 inside the VM (not virtiofs) so Landlock can enforce sandbox 
 - Worktree commands need `--allow .git/` (not just `.git/worktrees/`) for git commit operations
 - `fix`/`feature` grant `--read` on the main repo for Claude's Read/Edit tools to follow worktree symlinks
 - `bare` runs directly in the current checkout, so prompts and workflows must avoid overwriting unrelated local changes
+- Config merge order is defaults -> user (`~/.config/nono-dev/config.toml`) -> repo (`nono-dev.toml`) -- repo always wins
+- `lima_home` must be threaded through all `lima.py` calls -- never hardcode `~/.lima` in commands

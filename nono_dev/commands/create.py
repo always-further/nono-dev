@@ -92,7 +92,7 @@ def run(args):
     print(f"Starting VM '{args.name}'...")
     lima.start_vm(args.name, lima_home=lima_home)
 
-    guest_project = f"/home/{username}.guest/project"
+    guest_project = f"/home/{username}.linux/project"
 
     print("Starting mutagen sync...")
     lima.start_sync(args.name, mount_path, guest_project, lima_home=lima_home)
