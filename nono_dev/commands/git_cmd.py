@@ -35,7 +35,7 @@ def add_parser(subparsers):
         print()
         print(style.banner("  nono-dev git"))
         print()
-        print(f"    {style.value('git commit'):<35}    {style.dim('AI-generated conventional commit')}")
+        print(style.help_row("git commit", "", "AI-generated conventional commit"))
         print()
         sys.exit(0)
 

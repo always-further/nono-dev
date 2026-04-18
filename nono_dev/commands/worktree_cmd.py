@@ -19,12 +19,11 @@ def _wt_help(_args):
     print()
     print(style.banner("  nono-dev wt"))
     print()
-    print(f"    {style.value('wt list'):<35}    {style.dim('List managed worktrees')}")
-    print(f"    {style.value('wt cd'):<35} {style.muted('<name>')}  {style.dim('Open a shell in a worktree')}")
-    print(f"    {style.value('wt start'):<35} {style.muted('<name>')}  {style.dim('Open a shell and start a sandbox')}")
-    print(f"    {style.value('wt cleanup'):<35} {style.muted('<name|--all>')}  {style.dim('Remove worktrees and branches')}")
+    print(style.help_row("wt list",    "",             "List managed worktrees"))
+    print(style.help_row("wt cd",      "<name>",       "Open a shell in a worktree"))
+    print(style.help_row("wt start",   "<name>",       "Open a shell and start a sandbox"))
+    print(style.help_row("wt cleanup", "<name|--all>", "Remove worktrees and branches"))
     print()
-    import sys
     sys.exit(0)
 
 

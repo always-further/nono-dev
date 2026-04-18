@@ -241,8 +241,7 @@ If you've configured a [knowledge graph](graph.md) for the target repo, `nd fix`
 First-time setup (per repo, per developer):
 
 ```bash
-uv tool install graphifyy   # once, host-side
-nd install --force          # pick up the profile read grant
+nd install --with-graphify  # installs nono-dev + graphify + drops sandbox profile
 # Add [graphs.<name>] to nono-dev.toml, then:
 nd graph build <name>
 ```

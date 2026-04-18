@@ -154,7 +154,9 @@ def run(args):
 
 
 def _row(label, value):
-    print(f"    {style.label(label + ':'):<30} {value}")
+    # Use visible-width padding so ANSI codes in style.label don't throw off
+    # the value column.
+    print(f"    {style.pad_visible(style.label(label + ':'), 30)} {value}")
 
 
 def _styled_status(status):

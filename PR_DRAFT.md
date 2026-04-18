@@ -47,6 +47,7 @@ Wraps the `graphify` CLI into a `nd graph` command group so each developer maint
 Verified locally against `always-further/nono` (≈115 source files, 3428 nodes, 6394 edges):
 
 - [x] `nd install --force` installs v0.1.4 and copies the updated sandbox profile (with the graph read grant) to `~/.config/nono/profiles/nono-dev.json`.
+- [ ] `nd install --with-graphify` installs nono-dev *and* runs `uv tool install graphifyy`; rerunning it skips the graphify step with "already installed". `nd install --with-graphify --force` reinstalls both. `nd graph install` on its own has the same skip/force semantics and is a no-op when graphify is already present via pipx/brew.
 - [x] Add a `[graphs.<name>]` to `nono-dev.toml` pointing at a checkout; `nd graph build <name>` creates `<store>/graphify-out/graph.json` and the `<target>/graphify-out` symlink, appends `graphify-out` to `<target>/.git/info/exclude`.
 - [x] Target repo stays clean (`git status` shows nothing) during and after build/update.
 - [x] `nd graph status` shows the target with correct node/edge counts, `BEHIND 0`, and the current graphify version.
@@ -56,6 +57,8 @@ Verified locally against `always-further/nono` (≈115 source files, 3428 nodes,
 - [ ] On a repo with no `[graphs.*]` match, the prompt placeholder becomes "(no graph configured for this repo)" and no staleness warning fires.
 - [ ] Artificially age `manifest.json` (hand-edit `built_at` or rewrite `built_head` to an older SHA) and confirm the staleness warning fires at session launch.
 - [ ] After `uv tool upgrade graphifyy`, `nd graph status` flags the version mismatch.
+- [ ] When a newer `graphifyy` is published on PyPI, `nd graph build`/`update` warn once and suggest `nd graph upgrade && nd graph update --all`. The warning stays quiet for 24h via `~/.cache/nono-dev/graphify-latest.json`, and `--no-version-check` skips the lookup entirely.
+- [ ] `nd graph upgrade` runs `uv tool upgrade graphifyy`, clears the version cache, and reports the before→after version. `nd graph update --all` then rebuilds every configured target and reports a combined summary if any target fails.
 - [ ] Completion: `nd graph build no<TAB>` narrows to targets starting with `no`.
 - [ ] Migration path: start with a real `<target>/graphify-out/` dir and an empty store, run `nd graph update <name>`, confirm the contents move into the store and the symlink replaces the directory.
 

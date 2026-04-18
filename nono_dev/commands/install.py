@@ -17,6 +17,10 @@ def add_parser(subparsers):
         "--force", action="store_true",
         help="Reinstall even if already installed",
     )
+    parser.add_argument(
+        "--with-graphify", action="store_true", dest="with_graphify",
+        help="Also install the graphify knowledge-graph tool (uv tool install graphifyy)",
+    )
     parser.set_defaults(func=run)
 
 
@@ -27,7 +31,7 @@ def run(args):
     # Check for uv
     uv = shutil.which("uv")
     if not uv:
-        print(f"  {style.error('error')}  uv not found on PATH")
+        print(f"  {style.status('error')}  uv not found on PATH")
         print()
         print(style.dim("  Install uv first:"))
         print(style.dim("    curl -LsSf https://astral.sh/uv/install.sh | sh"))
@@ -38,7 +42,7 @@ def run(args):
     project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     pyproject = os.path.join(project_dir, "pyproject.toml")
     if not os.path.isfile(pyproject):
-        print(f"  {style.error('error')}  Cannot find pyproject.toml at {project_dir}")
+        print(f"  {style.status('error')}  Cannot find pyproject.toml at {project_dir}")
         sys.exit(1)
 
     # Build uv tool install command
@@ -46,20 +50,21 @@ def run(args):
     if args.force:
         cmd.append("--force")
 
-    print(f"  {style.info('run')}    uv tool install --editable {project_dir}")
+    print(f"  {style.status('run')}  uv tool install --editable {project_dir}")
     result = subprocess.run(cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
         stderr = result.stderr.strip()
         if "already installed" in stderr.lower():
-            print(f"  {style.muted('skip')}  nono-dev already installed (use --force to reinstall)")
+            print(f"  {style.status('skip')}  nono-dev already installed (use --force to reinstall)")
         else:
-            print(f"  {style.error('error')}  uv tool install failed:")
+            print(f"  {style.status('error')}  uv tool install failed:")
             for line in stderr.splitlines()[:5]:
-                print(f"         {line}")
+                # Align continuation with the message column.
+                print(f"{style.STATUS_CONTINUATION_INDENT}{line}")
             sys.exit(1)
     else:
-        print(f"  {style.info('ok')}    nono-dev installed to ~/.local/bin/nono-dev")
+        print(f"  {style.status('ok')}  nono-dev installed to ~/.local/bin/nono-dev")
 
     # Install nono-dev sandbox profile
     profile_src = os.path.join(
@@ -72,19 +77,34 @@ def run(args):
     if os.path.isfile(profile_src):
         os.makedirs(profile_dst_dir, exist_ok=True)
         shutil.copy2(profile_src, profile_dst)
-        print(f"  {style.info('ok')}    nono-dev profile installed to {profile_dst}")
+        print(f"  {style.status('ok')}  nono-dev profile installed to {profile_dst}")
     else:
-        print(f"  {style.warning('warn')}  nono-dev profile not found in package")
+        print(f"  {style.status('warn')}  nono-dev profile not found in package")
 
     # Verify it's on PATH
     if shutil.which("nono-dev"):
-        print(f"  {style.info('ok')}    nono-dev is on PATH")
+        print(f"  {style.status('ok')}  nono-dev is on PATH")
     else:
         print()
-        print(f"  {style.warning('warn')}  ~/.local/bin is not on your PATH")
+        print(f"  {style.status('warn')}  ~/.local/bin is not on your PATH")
         print(style.dim("  Add it to your shell config:"))
         print(style.dim('    export PATH="$HOME/.local/bin:$PATH"'))
         print()
         print(style.dim("  Or run: nono-dev dotfiles"))
+
+    # Optionally install the graphify knowledge-graph tool. Done last so a
+    # graphify failure doesn't leave nono-dev itself half-installed: nono-dev
+    # is already up at this point and usable without graphify.
+    if getattr(args, "with_graphify", False):
+        print()
+        print(style.header("  Install graphify"))
+        # Lazy import: graph.py pulls in urllib, datetime, etc. that the
+        # happy-path `nd install` (no --with-graphify) doesn't need.
+        from nono_dev.commands.graph import install_graphify
+        code = install_graphify(force=args.force)
+        if code != 0:
+            print()
+            print(f"  {style.status('error')}  graphify install failed (exit {code})")
+            sys.exit(code)
 
     print()

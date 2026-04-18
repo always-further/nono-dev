@@ -67,12 +67,14 @@ def _print_main_help():
     print()
 
     print(style.header("  Knowledge Graph") + style.dim("  (nono-dev graph ...)"))
-    _help_row("graph build", "[target]", "Build the Graphify knowledge graph")
-    _help_row("graph update", "[target]", "Incrementally update the graph")
+    _help_row("graph build", "[target|--all]", "Build the Graphify knowledge graph")
+    _help_row("graph update", "[target|--all]", "Incrementally update the graph")
     _help_row("graph query", "<question>", "Query the graph")
     _help_row("graph explain", "<node>", "Explain a node and its neighbors")
     _help_row("graph path", "<a> <b>", "Shortest path between two nodes")
     _help_row("graph ingest", "[target]", "Fetch GitHub issues/PRs into the graph corpus")
+    _help_row("graph install", "[--force]", "Install the graphify package via uv tool")
+    _help_row("graph upgrade", "", "Upgrade the graphify package via uv tool")
     _help_row("graph status", "", "Show targets and freshness")
     print()
 
@@ -88,7 +90,7 @@ def _print_main_help():
 
     print(style.header("  Utilities"))
     _help_row("init", "[-y] [--force]", "Create nono-dev.toml at the repository root")
-    _help_row("install", "[--force]", "Install nono-dev globally via uv tool")
+    _help_row("install", "[--with-graphify]", "Install nono-dev globally via uv tool")
     _help_row("shell-init", "", "Print shell functions for .zshrc")
     _help_row("dotfiles", "[--force]", "Deploy shipped dotfiles to local machine")
     print()
@@ -98,11 +100,8 @@ def _print_main_help():
 
 
 def _help_row(cmd, args, desc):
-    """Print a styled help row."""
-    cmd_str = style.value(cmd)
-    args_str = style.muted(args) if args else ""
-    full_cmd = f"{cmd_str} {args_str}".ljust(45 + 20)  # pad accounting for ANSI codes
-    print(f"    {full_cmd}{style.dim(desc)}")
+    """Print a styled help row with ANSI-safe column alignment."""
+    print(style.help_row(cmd, args, desc))
 
 
 def _print_group_help(group_name, commands):

@@ -82,31 +82,31 @@ def _install_tools():
 
     if not _has_command("brew"):
         print()
-        print(f"  {style.warning('warn')}  Homebrew not found. Install it first:")
-        print(style.dim("         https://brew.sh"))
+        print(f"  {style.status('warn')}  Homebrew not found. Install it first:")
+        print(style.dim(f"{style.STATUS_CONTINUATION_INDENT}https://brew.sh"))
         print()
         print(style.dim("  Then re-run: nono-dev dotfiles"))
         return
 
     missing = [pkg for pkg in BREW_PACKAGES if not _is_installed(pkg)]
     if not missing:
-        print(f"  {style.muted('skip')}  All tools already installed")
+        print(f"  {style.status('skip')}  All tools already installed")
     else:
-        print(f"  {style.info('brew')}  Installing: {', '.join(missing)}")
+        print(f"  {style.status('brew')}  Installing: {', '.join(missing)}")
         result = subprocess.run(
             ["brew", "install"] + missing,
             capture_output=True, text=True,
         )
         if result.returncode != 0:
-            print(f"  {style.warning('warn')}  brew install failed:")
+            print(f"  {style.status('warn')}  brew install failed:")
             for line in result.stderr.strip().splitlines()[:5]:
-                print(f"         {line}")
+                print(f"{style.STATUS_CONTINUATION_INDENT}{line}")
         else:
             for pkg in missing:
                 if _is_installed(pkg):
-                    print(f"  {style.info('ok')}    {pkg}")
+                    print(f"  {style.status('ok')}  {pkg}")
                 else:
-                    print(f"  {style.warning('warn')}  {pkg} not found after install")
+                    print(f"  {style.status('warn')}  {pkg} not found after install")
 
     # Install Nerd Font for starship icons
     font_check = subprocess.run(
@@ -114,23 +114,23 @@ def _install_tools():
         capture_output=True, text=True,
     )
     if font_check.returncode == 0:
-        print(f"  {style.muted('skip')}  {NERD_FONT_CASK} (already installed)")
+        print(f"  {style.status('skip')}  {NERD_FONT_CASK} (already installed)")
     else:
-        print(f"  {style.info('brew')}  Installing: {NERD_FONT_CASK}")
+        print(f"  {style.status('brew')}  Installing: {NERD_FONT_CASK}")
         result = subprocess.run(
             ["brew", "install", "--cask", NERD_FONT_CASK],
             capture_output=True, text=True,
         )
         if result.returncode != 0:
-            print(f"  {style.warning('warn')}  Font install failed:")
+            print(f"  {style.status('warn')}  Font install failed:")
             for line in result.stderr.strip().splitlines()[:5]:
-                print(f"         {line}")
+                print(f"{style.STATUS_CONTINUATION_INDENT}{line}")
         else:
-            print(f"  {style.info('ok')}    {NERD_FONT_CASK}")
+            print(f"  {style.status('ok')}  {NERD_FONT_CASK}")
             print()
-            print(f"  {style.warning('note')}  Set your terminal font to {style.value(NERD_FONT_NAME)}")
-            print(style.dim("         Terminal.app: Preferences > Profiles > Font > Change"))
-            print(style.dim("         iTerm2: Preferences > Profiles > Text > Font"))
+            print(f"  {style.status('note')}  Set your terminal font to {style.value(NERD_FONT_NAME)}")
+            print(style.dim(f"{style.STATUS_CONTINUATION_INDENT}Terminal.app: Preferences > Profiles > Font > Change"))
+            print(style.dim(f"{style.STATUS_CONTINUATION_INDENT}iTerm2: Preferences > Profiles > Text > Font"))
 
 
 def _deploy_dotfiles(args):
@@ -148,23 +148,23 @@ def _deploy_dotfiles(args):
         if os.path.exists(dest_path):
             existing = open(dest_path, encoding="utf-8").read()
             if existing == content:
-                print(f"  {style.muted('skip')}  {dest_template} (already up to date)")
+                print(f"  {style.status('skip')}  {dest_template} (already up to date)")
                 continue
 
             if not args.force:
                 backup = dest_path + ".bak"
                 shutil.copy2(dest_path, backup)
-                print(f"  {style.value('backup')}  {dest_template} -> {dest_template}.bak")
+                print(f"  {style.status('backup')}  {dest_template} -> {dest_template}.bak")
 
         with open(dest_path, "w", encoding="utf-8") as f:
             f.write(content)
-        print(f"  {style.info('write')}  {dest_template}")
+        print(f"  {style.status('write')}  {dest_template}")
 
 
 def _pick_starship_preset(args):
     """Let the user choose a starship preset, then apply it."""
     if not _has_command("starship"):
-        print(f"  {style.muted('skip')}  starship not installed, skipping preset")
+        print(f"  {style.status('skip')}  starship not installed, skipping preset")
         return
 
     dest_path = os.path.expanduser("~/.config/starship.toml")
@@ -177,7 +177,7 @@ def _pick_starship_preset(args):
     if preset_name:
         valid_names = [p[0] for p in STARSHIP_PRESETS]
         if preset_name not in valid_names:
-            print(f"  {style.error('error')}  Unknown preset: {preset_name}")
+            print(f"  {style.status('error')}  Unknown preset: {preset_name}")
             print(f"  {style.dim('  Available:')} {', '.join(valid_names)}")
             return
     else:
@@ -195,11 +195,11 @@ def _pick_starship_preset(args):
             choice = input(f"  {style.prompt_text('Pick a preset')} [1-{len(STARSHIP_PRESETS)}]: ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
-            print(f"  {style.muted('skip')}  starship preset (no selection)")
+            print(f"  {style.status('skip')}  starship preset (no selection)")
             return
 
         if not choice:
-            print(f"  {style.muted('skip')}  starship preset (no selection)")
+            print(f"  {style.status('skip')}  starship preset (no selection)")
             return
 
         try:
@@ -207,7 +207,7 @@ def _pick_starship_preset(args):
             if not 0 <= idx < len(STARSHIP_PRESETS):
                 raise ValueError
         except ValueError:
-            print(f"  {style.error('error')}  Invalid choice: {choice}")
+            print(f"  {style.status('error')}  Invalid choice: {choice}")
             return
 
         preset_name = STARSHIP_PRESETS[idx][0]
@@ -221,29 +221,29 @@ def _pick_starship_preset(args):
         if os.path.exists(dest_path) and not args.force:
             backup = dest_path + ".bak"
             shutil.copy2(dest_path, backup)
-            print(f"  {style.value('backup')}  ~/.config/starship.toml -> ~/.config/starship.toml.bak")
+            print(f"  {style.status('backup')}  ~/.config/starship.toml -> ~/.config/starship.toml.bak")
 
         with open(dest_path, "w", encoding="utf-8") as f:
             f.write(content)
-        print(f"  {style.info('write')}  ~/.config/starship.toml ({style.value('nono-dev')})")
+        print(f"  {style.status('write')}  ~/.config/starship.toml ({style.value('nono-dev')})")
     else:
         # Use starship preset command
         if os.path.exists(dest_path) and not args.force:
             backup = dest_path + ".bak"
             shutil.copy2(dest_path, backup)
-            print(f"  {style.value('backup')}  ~/.config/starship.toml -> ~/.config/starship.toml.bak")
+            print(f"  {style.status('backup')}  ~/.config/starship.toml -> ~/.config/starship.toml.bak")
 
         result = subprocess.run(
             ["starship", "preset", preset_name, "-o", dest_path],
             capture_output=True, text=True,
         )
         if result.returncode != 0:
-            print(f"  {style.error('error')}  Failed to apply preset: {preset_name}")
+            print(f"  {style.status('error')}  Failed to apply preset: {preset_name}")
             if result.stderr.strip():
                 for line in result.stderr.strip().splitlines()[:3]:
-                    print(f"         {line}")
+                    print(f"{style.STATUS_CONTINUATION_INDENT}{line}")
             return
-        print(f"  {style.info('write')}  ~/.config/starship.toml ({style.value(preset_name)})")
+        print(f"  {style.status('write')}  ~/.config/starship.toml ({style.value(preset_name)})")
 
 
 def run(args):

@@ -21,13 +21,26 @@ symlink target, separating wrapper metadata from graphify's payload.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 from nono_dev import graph_sync, project_config, style
+
+# PyPI package name for graphify (note the double-y).
+GRAPHIFY_PACKAGE = "graphifyy"
+
+# How long to trust a cached "latest version" lookup before refetching.
+_LATEST_VERSION_TTL_SECONDS = 24 * 60 * 60
+
+# Where we persist the last PyPI lookup between runs. Kept under the user's
+# cache dir (XDG-ish) so `nd graph` doesn't chatter at PyPI on every build.
+_VERSION_CACHE_PATH = os.path.expanduser("~/.cache/nono-dev/graphify-latest.json")
 
 
 # -- argparse wiring ---------------------------------------------------------
@@ -37,13 +50,15 @@ def _graph_help(_args):
     print()
     print(style.banner("  nono-dev graph"))
     print()
-    print(f"    {style.value('graph build'):<40} {style.muted('[target]')}       {style.dim('Build the knowledge graph for a target')}")
-    print(f"    {style.value('graph update'):<40} {style.muted('[target]')}       {style.dim('Incrementally update the graph')}")
-    print(f"    {style.value('graph query'):<40} {style.muted('<question>')}      {style.dim('Query the graph (BFS traversal)')}")
-    print(f"    {style.value('graph explain'):<40} {style.muted('<node>')}          {style.dim('Explain a node and its neighbors')}")
-    print(f"    {style.value('graph path'):<40} {style.muted('<a> <b>')}         {style.dim('Shortest path between two nodes')}")
-    print(f"    {style.value('graph ingest'):<40} {style.muted('[target]')}       {style.dim('Fetch GitHub issues/PRs into the graph corpus')}")
-    print(f"    {style.value('graph status'):<40}                 {style.dim('Show configured targets and freshness')}")
+    print(style.help_row("graph build",   "[target|--all]", "Build the knowledge graph for a target"))
+    print(style.help_row("graph update",  "[target|--all]", "Incrementally update the graph"))
+    print(style.help_row("graph query",   "<question>",     "Query the graph (BFS traversal)"))
+    print(style.help_row("graph explain", "<node>",         "Explain a node and its neighbors"))
+    print(style.help_row("graph path",    "<a> <b>",        "Shortest path between two nodes"))
+    print(style.help_row("graph ingest",  "[target]",       "Fetch GitHub issues/PRs into the graph corpus"))
+    print(style.help_row("graph install", "[--force]",      "Install the graphify package via uv tool"))
+    print(style.help_row("graph upgrade", "",               "Upgrade the graphify package via uv tool"))
+    print(style.help_row("graph status",  "",               "Show configured targets and freshness"))
     print()
     sys.exit(0)
 
@@ -56,15 +71,23 @@ def add_parser(subparsers):
     # graph build
     build_parser = graph_sub.add_parser("build", help="Build the knowledge graph for a target")
     build_parser.add_argument("target", nargs="?", default=None, help="Target name (from [graphs.<name>])")
+    build_parser.add_argument("--all", action="store_true", dest="all_targets",
+                              help="Build every configured target")
     build_parser.add_argument("--no-ingest", action="store_true", dest="no_ingest",
                               help="Skip auto-ingest even if configured")
+    build_parser.add_argument("--no-version-check", action="store_true", dest="no_version_check",
+                              help="Skip the PyPI check for a newer graphify release")
     build_parser.set_defaults(func=run_build)
 
     # graph update
     update_parser = graph_sub.add_parser("update", help="Incrementally update the graph")
     update_parser.add_argument("target", nargs="?", default=None)
+    update_parser.add_argument("--all", action="store_true", dest="all_targets",
+                               help="Update every configured target")
     update_parser.add_argument("--no-ingest", action="store_true", dest="no_ingest",
                                help="Skip auto-ingest even if configured")
+    update_parser.add_argument("--no-version-check", action="store_true", dest="no_version_check",
+                               help="Skip the PyPI check for a newer graphify release")
     update_parser.set_defaults(func=run_update)
 
     # graph query
@@ -96,6 +119,16 @@ def add_parser(subparsers):
                                help="Skip fetching files changed per PR")
     ingest_parser.set_defaults(func=run_ingest)
 
+    # graph install
+    install_parser = graph_sub.add_parser("install", help="Install the graphify package via uv tool")
+    install_parser.add_argument("--force", action="store_true",
+                                help="Reinstall even if graphify is already present")
+    install_parser.set_defaults(func=run_install)
+
+    # graph upgrade
+    upgrade_parser = graph_sub.add_parser("upgrade", help="Upgrade the graphify package via uv tool")
+    upgrade_parser.set_defaults(func=run_upgrade)
+
     # graph status
     status_parser = graph_sub.add_parser("status", help="Show targets and freshness")
     status_parser.set_defaults(func=run_status)
@@ -109,10 +142,13 @@ def _check_graphify_installed():
     if shutil.which("graphify"):
         return
     print(
-        "Error: 'graphify' command not found. Install it with:\n"
-        "  uv tool install graphifyy",
+        style.error("'graphify' command not found. Install it with:"),
         file=sys.stderr,
     )
+    print("  nd graph install", file=sys.stderr)
+    print(style.dim(
+        f"  (or `uv tool install {GRAPHIFY_PACKAGE}` directly)"
+    ), file=sys.stderr)
     sys.exit(1)
 
 
@@ -140,6 +176,124 @@ def _graphify_version():
     except (OSError, subprocess.SubprocessError):
         pass
     return "unknown"
+
+
+def _parse_version(raw):
+    """Extract a (major, minor, patch) tuple from a version-ish string.
+
+    Accepts any of 'graphifyy v0.5.2', '0.5.2', 'v1.0.0', '1.2.3.dev4+g...'.
+    Returns None when no semver-shaped token is present (e.g. 'unknown').
+    """
+    if not raw:
+        return None
+    m = re.search(r"(\d+)\.(\d+)\.(\d+)", str(raw))
+    if not m:
+        return None
+    try:
+        return (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:
+        return None
+
+
+def _format_version(tup):
+    """Render a (major, minor, patch) tuple back as 'x.y.z'."""
+    return ".".join(str(n) for n in tup) if tup else "unknown"
+
+
+def _read_version_cache():
+    """Return cached `{version, fetched_at}` dict, or {} on any failure."""
+    if not os.path.isfile(_VERSION_CACHE_PATH):
+        return {}
+    try:
+        with open(_VERSION_CACHE_PATH) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _write_version_cache(version):
+    """Persist the latest-known PyPI version with a fetch timestamp."""
+    payload = {
+        "version": version,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        os.makedirs(os.path.dirname(_VERSION_CACHE_PATH), exist_ok=True)
+        with open(_VERSION_CACHE_PATH, "w") as f:
+            json.dump(payload, f)
+    except OSError:
+        # Cache is a best-effort optimisation; silently ignore write errors.
+        pass
+
+
+def _cache_is_fresh(entry):
+    """True when `entry['fetched_at']` is within the TTL window."""
+    ts = entry.get("fetched_at")
+    if not ts:
+        return False
+    try:
+        fetched = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if fetched.tzinfo is None:
+        fetched = fetched.replace(tzinfo=timezone.utc)
+    age = (datetime.now(timezone.utc) - fetched).total_seconds()
+    return 0 <= age < _LATEST_VERSION_TTL_SECONDS
+
+
+def _latest_graphify_version(force=False):
+    """Return the latest published graphify version string, or None.
+
+    Uses a 24h on-disk cache to stay quiet. Silent on any failure (offline,
+    PyPI flake, malformed JSON): the check is advisory, never blocking.
+    Pass force=True to bypass the cache (e.g. right after `graph upgrade`).
+    """
+    if not force:
+        cached = _read_version_cache()
+        if _cache_is_fresh(cached) and cached.get("version"):
+            return cached["version"]
+
+    url = f"https://pypi.org/pypi/{GRAPHIFY_PACKAGE}/json"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "nono-dev"})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.load(resp)
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+        return None
+
+    version = (data.get("info") or {}).get("version")
+    if not version:
+        return None
+    _write_version_cache(version)
+    return version
+
+
+def _warn_graphify_outdated(skip=False):
+    """Warn to stderr if a newer graphify is published on PyPI.
+
+    No-op when `skip` is set, the version lookup fails, or either version
+    can't be parsed as semver. Safe to call multiple times per process --
+    the PyPI fetch is cached for 24h.
+    """
+    if skip:
+        return
+    installed_raw = _graphify_version()
+    installed = _parse_version(installed_raw)
+    if installed is None:
+        # Can't compare; stay silent rather than guess.
+        return
+    latest_raw = _latest_graphify_version()
+    latest = _parse_version(latest_raw)
+    if latest is None or latest <= installed:
+        return
+    print(
+        style.warning(
+            f"graphify {_format_version(installed)} is installed; "
+            f"{_format_version(latest)} is available on PyPI.\n"
+            f"  Run `nd graph upgrade && nd graph update --all` to refresh."
+        ),
+        file=sys.stderr,
+    )
 
 
 def _ensure_store_symlink(target):
@@ -402,15 +556,65 @@ def _warn_version_mismatch(store):
 def _run_build_or_update(args, *, update):
     _check_graphify_installed()
     config = project_config.load()
-    name, target = project_config.resolve_graph_target(config, args.target)
     _profile_preflight()
+    # PyPI check runs once per invocation, regardless of target count.
+    _warn_graphify_outdated(skip=getattr(args, "no_version_check", False))
+
+    all_targets = getattr(args, "all_targets", False)
+    if all_targets and args.target:
+        print(
+            style.error("pass either a target name or --all, not both."),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if all_targets:
+        targets = project_config.get_graph_targets(config)
+        if not targets:
+            print(
+                style.error(
+                    "no graph targets configured. Add a [graphs.<name>] "
+                    f"section to {project_config.CONFIG_FILENAME}."
+                ),
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        items = sorted(targets.items())
+    else:
+        name, target = project_config.resolve_graph_target(config, args.target)
+        items = [(name, target)]
+
+    no_ingest = getattr(args, "no_ingest", False)
+    failures = []
+    for idx, (name, target) in enumerate(items):
+        if idx > 0:
+            print()  # visual separator between targets
+        try:
+            _build_or_update_target(config, name, target, update=update, no_ingest=no_ingest)
+        except SystemExit as exc:
+            # Don't abort the remaining --all targets on a single failure;
+            # collect the failure and continue so one stale repo doesn't
+            # block the rest.
+            if not all_targets:
+                raise
+            code = exc.code if isinstance(exc.code, int) else 1
+            failures.append((name, code))
+
+    if failures:
+        summary = ", ".join(f"{n} (exit {c})" for n, c in failures)
+        print(style.error(f"failed targets: {summary}"), file=sys.stderr)
+        sys.exit(1)
+
+
+def _build_or_update_target(config, name, target, *, update, no_ingest):
+    """Run a single target's build/update. Raises SystemExit on failure."""
     if update:
         _warn_version_mismatch(target["store"])
 
     # Auto-ingest if configured, unless --no-ingest
-    if target.get("ingest") and not getattr(args, "no_ingest", False):
+    if target.get("ingest") and not no_ingest:
         import argparse as _ap
-        ingest_args = _ap.Namespace(target=args.target, limit=None, no_files=False)
+        ingest_args = _ap.Namespace(target=name, limit=None, no_files=False)
         run_ingest(ingest_args)
         print()
 
@@ -490,6 +694,124 @@ def run_update(args):
     _run_build_or_update(args, update=True)
 
 
+def _invalidate_version_cache():
+    """Drop the cached PyPI-latest-version file (best-effort).
+
+    Called after install/upgrade so the next `build`/`update` doesn't nag
+    about a "newer" release that we just installed locally.
+    """
+    try:
+        if os.path.isfile(_VERSION_CACHE_PATH):
+            os.unlink(_VERSION_CACHE_PATH)
+    except OSError:
+        pass
+
+
+def _require_uv():
+    """Print an actionable error and exit if `uv` isn't on PATH."""
+    if shutil.which("uv"):
+        return
+    print(
+        style.error(
+            "'uv' not found. Install uv first "
+            "(https://docs.astral.sh/uv/) or manage graphify with "
+            f"your preferred tool (e.g. `pipx install {GRAPHIFY_PACKAGE}`)."
+        ),
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
+def install_graphify(force=False):
+    """Install graphify via `uv tool install graphifyy`.
+
+    Shared by `nd graph install` and `nd install --with-graphify` so both
+    paths behave identically: same uv invocation, same cache invalidation,
+    same version reporting. Returns the exit code (0 on success, including
+    the already-installed skip path when `force` is False).
+
+    When graphify is already on PATH and `force` is False, this is a no-op
+    -- important for idempotent `nd install --with-graphify` reruns and for
+    not blowing away a user's pipx/brew-managed install.
+    """
+    _require_uv()
+
+    if not force and shutil.which("graphify"):
+        version = _parse_version(_graphify_version())
+        if version:
+            print(style.muted(
+                f"graphify {_format_version(version)} already installed; "
+                f"use --force to reinstall."
+            ))
+        else:
+            print(style.muted(
+                "graphify already installed; use --force to reinstall."
+            ))
+        return 0
+
+    cmd = ["uv", "tool", "install", GRAPHIFY_PACKAGE]
+    if force:
+        cmd.append("--force")
+    print(style.info(f"Running: {' '.join(cmd)}"))
+    try:
+        result = subprocess.run(cmd)
+    except FileNotFoundError:
+        print(style.error("uv not found on PATH"), file=sys.stderr)
+        return 1
+
+    _invalidate_version_cache()
+
+    if result.returncode != 0:
+        return result.returncode
+
+    installed = _parse_version(_graphify_version())
+    if installed:
+        print(style.success(f"graphify {_format_version(installed)} installed."))
+    else:
+        print(style.success("graphify installed."))
+    return 0
+
+
+def run_install(args):
+    """`nd graph install` handler."""
+    sys.exit(install_graphify(force=args.force))
+
+
+def run_upgrade(_args):
+    """Upgrade the graphify package via `uv tool upgrade`.
+
+    Requires `uv` on PATH. If graphify wasn't installed via `uv tool`, the
+    upgrade will no-op or error -- we surface uv's exit code in that case
+    rather than trying to second-guess pipx/brew/etc. On success we bust the
+    PyPI-version cache so the next `build`/`update` reports the new version.
+    """
+    _check_graphify_installed()
+    _require_uv()
+
+    before = _parse_version(_graphify_version())
+    cmd = ["uv", "tool", "upgrade", GRAPHIFY_PACKAGE]
+    print(style.info(f"Running: {' '.join(cmd)}"))
+    try:
+        result = subprocess.run(cmd)
+    except FileNotFoundError:
+        print(style.error("uv not found on PATH"), file=sys.stderr)
+        sys.exit(1)
+
+    _invalidate_version_cache()
+
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+
+    after = _parse_version(_graphify_version())
+    if before and after and after > before:
+        print(style.success(
+            f"graphify upgraded {_format_version(before)} -> {_format_version(after)}. "
+            f"Run `nd graph update --all` to refresh graphs."
+        ))
+    elif after:
+        print(style.success(f"graphify is at {_format_version(after)}."))
+
+
 def _graphify_passthrough(args, subcmd, *, extra_cli_args):
     _check_graphify_installed()
     config = project_config.load()
@@ -564,12 +886,18 @@ def run_status(_args):
             short_head, behind_str, str(nodes), str(edges), version_str,
         ])
 
-    # Simple column-aligned print (mirrors sandbox_status style without importing).
-    widths = [max(len(_strip_ansi(r[i])) for r in ([headers] + rows)) for i in range(len(headers))]
-    header_line = "  ".join(style.table_header(h.ljust(widths[i])) for i, h in enumerate(headers))
+    # Column widths are computed against *visible* cell widths so ANSI-styled
+    # cells (e.g. the VERSION mismatch) don't stretch the column.
+    widths = [
+        max(style.visible_len(r[i]) for r in ([headers] + rows))
+        for i in range(len(headers))
+    ]
+    header_line = "  ".join(
+        style.table_header(h.ljust(widths[i])) for i, h in enumerate(headers)
+    )
     print(header_line)
     for row in rows:
-        line = "  ".join(_pad_visible(cell, widths[i]) for i, cell in enumerate(row))
+        line = "  ".join(style.pad_visible(cell, widths[i]) for i, cell in enumerate(row))
         print(line)
 
 
@@ -852,15 +1180,3 @@ def run_ingest(args):
     else:
         print(style.success(f"Ingested {len(issues)} issues + {len(prs)} PRs into {ingest_dir}"))
     print(f"  {style.label('next:')}  run {style.value(f'nd graph build {name}')} to index code + issues + PRs together")
-
-
-def _strip_ansi(s):
-    import re
-    return re.sub(r"\033\[[0-9;]*m", "", str(s))
-
-
-def _pad_visible(s, width):
-    """Left-pad a possibly-ANSI-styled string to `width` visible characters."""
-    visible_len = len(_strip_ansi(s))
-    pad = max(0, width - visible_len)
-    return f"{s}{' ' * pad}"

@@ -12,13 +12,19 @@ Graphify is strongest on code (AST-based extraction yields high-confidence `EXTR
 
 ## Prerequisites
 
-Install Graphify once (host-side, not in the VM):
+Install Graphify once (host-side, not in the VM). The easiest way is via `nd install`:
 
 ```bash
+nd install --with-graphify          # recommended: installs nono-dev + graphify together
+# or, if nono-dev is already installed:
+nd graph install                     # installs just graphify
+# or, the underlying call:
 uv tool install graphifyy
 ```
 
-If the profile isn't up to date, agents won't be able to read the graph. Run `nd install --force` after pulling a version of nono-dev that touches `nono_dev/profiles/nono-dev.json` so the read grant for `~/.local/share/nono-dev/graphs` is picked up.
+All three drop the `graphify` binary at `~/.local/bin/graphify` (a symlink into a uv-managed venv at `~/.local/share/uv/tools/graphifyy/`). As long as `~/.local/bin` is on your `$PATH` — which `nd install` checks and warns about — `graphify` is available from any shell, from any directory.
+
+If the sandbox profile isn't up to date, agents won't be able to read the graph. Run `nd install --force` after pulling a version of nono-dev that touches `nono_dev/profiles/nono-dev.json` so the read grant for `~/.local/share/nono-dev/graphs` is picked up.
 
 ## Configure a target
 
@@ -57,9 +63,22 @@ An incremental update re-extracts changed files and reuses the semantic cache:
 nd graph update nono
 ```
 
-Build and update both warn if the installed `graphify` binary version has changed since the last build (the graph schema may be stale). They'll also warn if the sandbox profile is missing the read grant so agents can't actually see the graph.
+Build and update both warn if the installed `graphify` binary version has changed since the last build (the graph schema may be stale). They also warn if the sandbox profile is missing the read grant so agents can't actually see the graph.
 
-If multiple targets are configured and you omit the name, both commands error rather than guess. This is intentional: one command, one target.
+On every `build`/`update` they additionally check PyPI for a newer `graphifyy` release and, if one is available, point you at `nd graph upgrade && nd graph update --all` to refresh. The PyPI lookup is cached for 24h under `~/.cache/nono-dev/graphify-latest.json` and fails silently offline. Pass `--no-version-check` to skip the lookup entirely.
+
+If multiple targets are configured and you omit the name, both commands error rather than guess — *unless* you pass `--all`, in which case every configured target is built/updated in sequence. A failure in one target is reported at the end but does not stop the others.
+
+## Install and upgrade graphify
+
+```bash
+nd graph install              # uv tool install graphifyy (no-op if already present)
+nd graph install --force      # reinstall (use after switching from pipx/brew to uv)
+nd graph upgrade              # uv tool upgrade graphifyy
+nd graph update --all         # rebuild all graphs against the new version
+```
+
+`nd graph install` and `nd graph upgrade` both shell out to `uv tool`. If graphify is already on `PATH` (e.g. installed via pipx or brew), `install` skips with a note — it won't overwrite a non-uv install unless you pass `--force`. If you install with a different tool, upgrade with that tool and then run `nd graph update --all` yourself.
 
 ## Query the graph
 
