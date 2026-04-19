@@ -10,9 +10,11 @@ COMMIT_SYSTEM_PROMPT = """\
 You generate git commit messages following the Conventional Commits specification.
 
 Format:
+
+Natural relaxed description of the changes, ideally 50 characters or less
 - First line: type(scope): description
 - Blank line
-- Body: optional detailed description using naural language, prose and bullet points. Use markdown formatting if helpful.
+- Body: optional detailed description using naural language, prose and only sparse use of bullet points. Use markdown formatting if helpful.
 
 Types: feat, fix, refactor, docs, test, chore, ci, perf, build, style
 

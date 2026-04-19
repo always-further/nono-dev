@@ -101,7 +101,7 @@ fi
 
 # Modern CLI replacements
 if command -v bat &> /dev/null; then
-    alias cat='bat'
+    alias cat='bat -p'
 elif command -v batcat &> /dev/null; then
     alias cat='batcat'
 fi
