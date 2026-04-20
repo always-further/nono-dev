@@ -57,7 +57,7 @@ def run(args):
         sys.exit(1)
 
     username = args.user or os.environ.get("USER", "dev")
-    guest_project = f"/home/{username}.linux/project"
+    guest_project = f"/home/{username}.guest/project"
 
     info = lima.sync_info(vm_name)
     if info and info[0] == new_path:
