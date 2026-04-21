@@ -17,6 +17,7 @@ def add_parser(subparsers):
         "--no-rollback", action="store_true",
         help="Disable rollback snapshots for this session",
     )
+    nono.add_sandbox_pass_through_args(parser)
     parser.set_defaults(func=run)
 
 
@@ -62,10 +63,11 @@ def run(args):
     # Grant write access to .git/ for commits, index, refs, objects.
     git_dir = os.path.join(project_root, ".git")
 
+    extra_allows, extra_reads = nono.normalize_sandbox_paths(args)
     session_id = nono.run_detached(
         session_name,
-        allows=[abs_path, git_dir],
-        reads=[project_root],
+        allows=[abs_path, git_dir] + extra_allows,
+        reads=[project_root] + extra_reads,
         allow_cwd=True,
         system_prompt=prompt_path,
         rollback=rollback,

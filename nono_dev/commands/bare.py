@@ -18,6 +18,7 @@ def add_parser(subparsers):
         "--no-rollback", action="store_true",
         help="Disable rollback snapshots for this session",
     )
+    nono.add_sandbox_pass_through_args(parser)
     parser.set_defaults(func=run)
 
 
@@ -76,9 +77,11 @@ def run(args):
             )
             return
 
+    extra_allows, extra_reads = nono.normalize_sandbox_paths(args)
     session_id = nono.run_detached(
         session_name,
-        allows=[project_root, git_dir],
+        allows=[project_root, git_dir] + extra_allows,
+        reads=extra_reads,
         allow_cwd=True,
         system_prompt=prompt_path,
         rollback=rollback,

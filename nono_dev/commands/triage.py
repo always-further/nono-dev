@@ -17,6 +17,7 @@ def add_parser(subparsers):
         "--no-rollback", action="store_true",
         help="Disable rollback snapshots for this session",
     )
+    nono.add_sandbox_pass_through_args(parser)
     parser.set_defaults(func=run)
 
 
@@ -47,9 +48,11 @@ def run(args):
             print(f"  {style.label('Attach:')} {style.value('nono-dev sb attach ' + s.get('session_id', session_name))}")
             return
 
+    extra_allows, extra_reads = nono.normalize_sandbox_paths(args)
     session_id = nono.run_detached(
         session_name,
-        allows=[project_root],
+        allows=[project_root] + extra_allows,
+        reads=extra_reads,
         allow_cwd=True,
         system_prompt=prompt_path,
         user_prompt=args.issue_number,

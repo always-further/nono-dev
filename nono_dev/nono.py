@@ -141,3 +141,54 @@ def ps_json(include_all=True):
 def attach(session_id):
     """Attach to a running nono session. Replaces the current process."""
     os.execvp("nono", ["nono", "attach", session_id])
+
+
+# -- pass-through argparse helpers -------------------------------------------
+#
+# Every `nd` launcher (bare/fix/feature/review/triage) sets up a fixed
+# baseline of `--allow` / `--read` paths for the sandbox (project root,
+# worktree, .git/, etc.). Users sometimes need to grant an additional
+# path for a specific session -- e.g. a sibling repo they want to let
+# Claude read while fixing a cross-cutting issue. Rather than hard-code
+# those paths into the config or require a code change, expose them as
+# repeatable CLI flags that forward 1:1 to `nono run --allow`/`--read`.
+#
+# Helpers live here (next to `run_detached`) so the argparse surface and
+# the subprocess-call shape stay in sync. Adding a new pass-through flag
+# is: extend `add_sandbox_pass_through_args`, extend the normaliser, and
+# extend `run_detached`'s kwargs.
+
+
+def add_sandbox_pass_through_args(parser):
+    """Register `--allow PATH` and `--read PATH` on a launcher's argparse.
+
+    Both are repeatable. Paths are stored in `args.extra_allows` and
+    `args.extra_reads` verbatim; callers should normalise via
+    `normalize_sandbox_paths()` before handing them to `run_detached`.
+    """
+    parser.add_argument(
+        "--allow", action="append", dest="extra_allows", default=[],
+        metavar="PATH",
+        help="Grant read+write on an additional path inside the sandbox. "
+             "Forwarded to `nono run --allow`. Repeatable.",
+    )
+    parser.add_argument(
+        "--read", action="append", dest="extra_reads", default=[],
+        metavar="PATH",
+        help="Grant read-only access to an additional path inside the sandbox. "
+             "Forwarded to `nono run --read`. Repeatable.",
+    )
+
+
+def normalize_sandbox_paths(args):
+    """Expand `~` and resolve relative paths for `--allow` / `--read` inputs.
+
+    Returns `(extra_allows, extra_reads)` as absolute paths. Missing attrs
+    default to empty lists so this is safe to call on any args namespace.
+    """
+    def _norm(paths):
+        return [os.path.abspath(os.path.expanduser(p)) for p in paths or []]
+    return (
+        _norm(getattr(args, "extra_allows", None)),
+        _norm(getattr(args, "extra_reads", None)),
+    )
