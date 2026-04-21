@@ -18,8 +18,12 @@ path=(
 )
 export PATH
 
-# Keep Linux cargo builds on local disk, separate from macOS shared mount
-export CARGO_TARGET_DIR="$HOME/.cargo_target_linux"
+# Keep Linux cargo builds on local disk, separate from macOS shared mount.
+# Only set inside the VM -- on the macOS host, leave CARGO_TARGET_DIR unset
+# so native builds use the default per-project target/ directory.
+if [[ "$OSTYPE" == linux* ]]; then
+    export CARGO_TARGET_DIR="$HOME/.cargo_target_linux"
+fi
 
 # History
 HISTFILE=~/.zsh_history
