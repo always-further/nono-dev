@@ -34,4 +34,14 @@ def run(args):
 
     if lima_home:
         os.environ["LIMA_HOME"] = lima_home
-    os.execvp("limactl", ["limactl", "shell", args.name])
+    os.execvp(
+        "limactl",
+        [
+            "limactl",
+            "shell",
+            args.name,
+            "sh",
+            "-lc",
+            'shell="$(getent passwd "$USER" | cut -d: -f7)"; exec "${shell:-/bin/bash}" -l',
+        ],
+    )
