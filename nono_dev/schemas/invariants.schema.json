@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/always-further/nono-dev/blob/main/schemas/invariants.schema.json",
+  "title": "Invariants",
+  "description": "Load-bearing invariants for a codebase. Consumed by /triage, /invariants-review, /invariants-update, and other workflows. One file per repo, typically at proj/invariants.yaml or docs/invariants.yaml.",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "$ref": "#/$defs/invariant"
+  },
+  "$defs": {
+    "invariant": {
+      "type": "object",
+      "required": ["id", "subsystems", "statement", "source", "severity"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+          "minLength": 3,
+          "maxLength": 60,
+          "description": "Kebab-case, unique within file. Referenced from code comments (// invariant lib-policy-free: ...) and from review tool output."
+        },
+        "subsystems": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "minLength": 2,
+            "maxLength": 40
+          },
+          "description": "Plain-English tags matching how a contributor would describe the area in an issue or PR. Use multiple tags generously (e.g. [sandbox, linux, landlock]) to improve matching. Avoid graphify community IDs — they shift between rebuilds."
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 1500,
+          "description": "One sentence or short paragraph stating the invariant. Must be actionable — a rule a reviewer can check, not a vague principle. 'Handle errors well' is not actionable; 'Return Result; library code must not .unwrap()' is."
+        },
+        "source": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 300,
+          "description": "Doc reference or URL. Two accepted forms: (a) 'path/to/doc.md#anchor' — relative to repo root, anchor is the doc's heading slug; (b) 'https://...' — external URL (GitHub issue, RFC, CVE, upstream doc). Never leave empty; if an invariant has no written source, document it first, then cite that doc.",
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_./-]+\\.(md|mdx|adoc|rst|txt)(#[A-Za-z0-9_-]+)?$"
+            },
+            {
+              "pattern": "^https?://"
+            }
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "high — breaking it creates a security hole, data-loss bug, or correctness regression. medium — violates API contract, testing discipline, or platform behaviour. low — style, ergonomics, or process."
+        },
+        "added": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional ISO date when this entry was added. Helpful for /invariants-update to detect entries that have never been reviewed."
+        },
+        "last_reviewed": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional ISO date of last explicit review. /invariants-update proposes updates for entries not reviewed in N months."
+        },
+        "tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "description": "Optional free-form tags beyond subsystems. Useful for cross-cutting concerns (security, performance, api-stability) that aren't subsystem identities."
+        },
+        "related": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "description": "Optional list of related invariant IDs. Used by /triage to surface a small cluster rather than a single rule where multiple apply together."
+        }
+      }
+    }
+  }
+}

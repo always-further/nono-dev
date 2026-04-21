@@ -18,6 +18,7 @@ from nono_dev.commands import (
     init,
     inspect_cmd,
     install,
+    invariants,
     mount,
     prune,
     recreate,
@@ -76,6 +77,10 @@ def _print_main_help():
     _help_row("graph install", "[--force]", "Install the graphify package via uv tool")
     _help_row("graph upgrade", "", "Upgrade the graphify package via uv tool")
     _help_row("graph status", "", "Show targets and freshness")
+    print()
+
+    print(style.header("  Invariants") + style.dim("  (nono-dev invariants ...)"))
+    _help_row("invariants", "validate [path]", "Validate invariants.yaml against the schema")
     print()
 
     print(style.header("  VM Management") + style.dim("  (nono-dev vm ...)"))
@@ -192,6 +197,9 @@ def main():
 
     # graph group
     graph.add_parser(subparsers)
+
+    # invariants group
+    invariants.add_parser(subparsers)
 
     # Utilities
     init.add_parser(subparsers)

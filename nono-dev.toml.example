@@ -15,11 +15,19 @@ enabled = false                    # enable nono rollback snapshots (default: fa
 [prompts]
 # Override default system prompts with project-specific ones (optional).
 # Paths are relative to this config file.
-# triage = "prompts/triage.md"
-# fix = "prompts/fix.md"
-# review = "prompts/review.md"
+#
+# Override targets can be:
+#   - a plain markdown prompt (the shipped defaults under nono_dev/prompts/)
+#   - a Claude skill file (SKILL.md) — skills are markdown, so they plug in
+#     directly as system prompts. For example, the generic repo-triage skill
+#     checked in at nono-dev/skills/repo-triage/SKILL.md works against any
+#     graphify-enabled repository and can back the headless `nd triage` flow.
+#
+# triage  = "/absolute/path/to/nono-dev/skills/repo-triage/SKILL.md"
+# fix     = "prompts/fix.md"
+# review  = "prompts/review.md"
 # feature = "prompts/feature.md"
-# bare = "prompts/bare.md"
+# bare    = "prompts/bare.md"
 
 # Graphify knowledge-graph targets. Each [graphs.<name>] section declares
 # a repo to index. Runs `nd graph build|update|query|explain|path|status`

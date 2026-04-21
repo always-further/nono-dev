@@ -18,7 +18,13 @@ nd = "nono_dev.cli:main"
 include = ["nono_dev*"]
 
 [tool.setuptools.package-data]
-"nono_dev" = ["prompts/*.md", "dotfiles/.*", "dotfiles/*.toml", "profiles/*.json"]
+"nono_dev" = [
+    "prompts/*.md",
+    "dotfiles/.*",
+    "dotfiles/*.toml",
+    "profiles/*.json",
+    "schemas/*.json",
+]
 
 [build-system]
 requires = ["setuptools>=64"]
