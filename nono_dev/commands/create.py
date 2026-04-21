@@ -116,8 +116,13 @@ def run(args):
 
     guest_project = f"/home/{username}.guest/project"
 
-    print("Starting mutagen sync...")
+    print(
+        "Starting mutagen sync "
+        f"({mount_path} -> {guest_project}; initial scan may take a while on large repos)...",
+        flush=True,
+    )
     lima.start_sync(args.name, mount_path, guest_project, lima_home=lima_home)
+    print("Mutagen sync is active.", flush=True)
 
     print(f"""
 VM '{args.name}' created successfully.

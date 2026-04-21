@@ -42,4 +42,16 @@ def run(args):
 
     if lima_home:
         os.environ["LIMA_HOME"] = lima_home
-    os.execvp("limactl", ["limactl", "shell", vm])
+    # Launch the user's login shell inside the VM (upstream) using the
+    # resolved `vm` name rather than the raw arg (ours).
+    os.execvp(
+        "limactl",
+        [
+            "limactl",
+            "shell",
+            vm,
+            "sh",
+            "-lc",
+            'shell="$(getent passwd "$USER" | cut -d: -f7)"; exec "${shell:-/bin/bash}" -l',
+        ],
+    )

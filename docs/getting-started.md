@@ -46,16 +46,27 @@ This installs:
 
 Restart your shell or `source ~/.zshrc` to load it.
 
-## Project Configuration
+## Configuration
 
-Create a `nono-dev.toml` file in the root of the project you want to work on:
+### User config (recommended)
+
+Create `~/.config/nono-dev/config.toml` to set global defaults. This is the best place to redirect worktrees and VM storage to an external drive:
+
+```toml
+[worktree]
+dir = "/Volumes/SSD/worktrees"  # repo name auto-appended
+
+[lima]
+home = "/Volumes/SSD/lima"      # VM disk images stored here
+```
+
+### Repo config (optional)
+
+Create a `nono-dev.toml` file in the root of the project you want to work on. This overrides user config:
 
 ```toml
 [project]
 repo = "always-further/nono"  # optional, auto-detected from git remote
-
-[worktree]
-dir = ".worktrees"
 
 [rollback]
 enabled = true

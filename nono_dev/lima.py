@@ -2,9 +2,11 @@
 
 import json
 import os
+import select
 import shutil
 import subprocess
 import sys
+import time
 
 
 def _lima_env(lima_home=None):
@@ -96,11 +98,45 @@ def create_vm(name, lima_config_path, lima_home=None):
 
 def start_vm(name, lima_home=None):
     """Start a Lima VM."""
-    result = subprocess.run(
+    status = vm_status(name, lima_home=lima_home)
+    if status == "Running":
+        print(f"VM '{name}' is already running.")
+        return
+
+    process = subprocess.Popen(
         ["limactl", "start", name],
         env=_lima_env(lima_home),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
     )
-    if result.returncode != 0:
+    assert process.stdout is not None
+    ready_prefix = "READY. Run `limactl shell "
+    last_output = time.monotonic()
+    last_heartbeat = 0.0
+    while True:
+        ready, _, _ = select.select([process.stdout], [], [], 1.0)
+        if ready:
+            line = process.stdout.readline()
+            if not line:
+                break
+            last_output = time.monotonic()
+            line = line.replace('\\"', '"')
+            if ready_prefix in line:
+                print("READY. Run `nono-dev vm connect` to open the shell.")
+            else:
+                print(line, end="")
+            continue
+
+        now = time.monotonic()
+        if now - last_output >= 15 and now - last_heartbeat >= 15:
+            print("VM still starting; waiting for guest boot/provisioning to finish...")
+            last_heartbeat = now
+
+        if process.poll() is not None:
+            break
+    if process.wait() != 0:
         sys.exit(1)
 
 
@@ -292,7 +328,12 @@ def start_sync(vm_name, host_path, guest_path, lima_home=None):
         [
             "mutagen", "sync", "create",
             "--name", session_name,
-            "--ignore-vcs",
+            "--ignore", ".worktrees/",
+            "--ignore", "node_modules/",
+            "--ignore", "target/",
+            "--ignore", ".venv/",
+            "--ignore", "__pycache__/",
+            "--ignore", ".next/",
             "--default-file-mode", "0644",
             "--default-directory-mode", "0755",
             host_path,

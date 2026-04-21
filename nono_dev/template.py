@@ -122,8 +122,6 @@ def build_lima_config(
             {"mode": "user", "script": user_script},
         ],
     }
-    if shell_setup:
-        config["user"] = {"shell": "/bin/zsh"}
     return _yaml_dump(config)
 
 
