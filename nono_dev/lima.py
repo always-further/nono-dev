@@ -259,7 +259,6 @@ def start_sync(vm_name, host_path, guest_path, lima_home=None):
         [
             "mutagen", "sync", "create",
             "--name", session_name,
-            "--ignore-vcs",
             "--ignore", ".worktrees/",
             "--ignore", "node_modules/",
             "--ignore", "target/",
