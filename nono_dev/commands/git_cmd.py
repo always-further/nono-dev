@@ -79,7 +79,7 @@ def _stage_all():
 def _commit(message):
     """Commit with sign-off."""
     result = subprocess.run(
-        ["git", "commit", "-s", "-m", message],
+        ["git", "commit", "-s", "--no-gpg-sign", "-m", message],
         capture_output=True, text=True,
     )
     if result.returncode != 0:
