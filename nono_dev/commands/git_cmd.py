@@ -46,29 +46,55 @@ def add_parser(subparsers):
     commit_parser = git_sub.add_parser(
         "commit", help="Generate a commit message with AI and commit",
     )
+    commit_parser.add_argument(
+        "-a", "--all",
+        action="store_true",
+        help="Stage all changes (including untracked) before committing. "
+             "Without this flag, if anything is staged only the staged changes "
+             "are committed; if nothing is staged, all changes are staged.",
+    )
     commit_parser.set_defaults(func=run_commit)
 
 
-def _get_diff():
-    """Get the combined diff of staged and unstaged changes."""
-    unstaged = subprocess.run(
-        ["git", "diff"],
-        capture_output=True, text=True,
-    )
-    staged = subprocess.run(
+def _get_staged_diff():
+    """Get the diff of staged changes."""
+    result = subprocess.run(
         ["git", "diff", "--cached"],
         capture_output=True, text=True,
     )
-    return (unstaged.stdout + staged.stdout).strip()
+    return result.stdout.strip()
+
+
+def _get_unstaged_diff():
+    """Get the diff of unstaged (tracked) changes."""
+    result = subprocess.run(
+        ["git", "diff"],
+        capture_output=True, text=True,
+    )
+    return result.stdout.strip()
+
+
+def _get_unstaged_files():
+    """Get list of tracked files with unstaged modifications."""
+    result = subprocess.run(
+        ["git", "diff", "--name-only"],
+        capture_output=True, text=True,
+    )
+    return [line for line in result.stdout.splitlines() if line.strip()]
 
 
 def _get_untracked():
-    """Get list of untracked files."""
+    """Get list of untracked files (newline-separated string)."""
     result = subprocess.run(
         ["git", "ls-files", "--others", "--exclude-standard"],
         capture_output=True, text=True,
     )
     return result.stdout.strip()
+
+
+def _untracked_list(untracked):
+    """Split the untracked-files blob into a list of paths."""
+    return [line for line in untracked.splitlines() if line.strip()]
 
 
 def _stage_all():
@@ -88,19 +114,54 @@ def _commit(message):
     print(style.success(result.stdout.strip()))
 
 
-def run_commit(_args):
-    diff = _get_diff()
+def run_commit(args):
+    staged_diff = _get_staged_diff()
+    unstaged_diff = _get_unstaged_diff()
     untracked = _get_untracked()
 
-    if not diff and not untracked:
+    use_all = getattr(args, "all", False)
+
+    if use_all:
+        # Legacy behavior: stage everything (including untracked) and commit.
+        diff_parts = [d for d in (staged_diff, unstaged_diff) if d]
+        diff = "\n".join(diff_parts)
+        prompt_untracked = untracked
+        stage_before_commit = True
+    elif staged_diff:
+        # Respect existing staging: commit only what's already staged.
+        diff = staged_diff
+        prompt_untracked = ""  # untracked aren't going in
+        stage_before_commit = False
+
+        # Tell the user what's being left out so they don't get surprised.
+        unstaged_files = _get_unstaged_files()
+        untracked_files = _untracked_list(untracked)
+        skipped_parts = []
+        if unstaged_files:
+            skipped_parts.append(f"{len(unstaged_files)} unstaged")
+        if untracked_files:
+            skipped_parts.append(f"{len(untracked_files)} untracked")
+        if skipped_parts:
+            skipped = " and ".join(skipped_parts)
+            print(style.muted(
+                f"({skipped} files left out — run with -a to include)"
+            ))
+    else:
+        # Nothing staged and no -a: fall back to today's behavior so users
+        # who never stage manually keep their muscle memory.
+        diff = unstaged_diff
+        prompt_untracked = untracked
+        stage_before_commit = True
+
+    if not diff and not prompt_untracked:
         print(style.muted("No changes to commit."))
         return
 
     prompt_parts = []
     if diff:
         prompt_parts.append(f"Diff:\n{diff}")
-    if untracked:
-        prompt_parts.append(f"New untracked files:\n{untracked}")
+    if prompt_untracked:
+        prompt_parts.append(f"New untracked files:\n{prompt_untracked}")
 
     prompt = "Generate a commit message for these changes:\n\n" + "\n\n".join(prompt_parts)
 
@@ -137,7 +198,8 @@ def run_commit(_args):
             print(style.warning("Aborted."))
             return
 
-    _stage_all()
+    if stage_before_commit:
+        _stage_all()
     _commit(message)
 
     # Offer to push
