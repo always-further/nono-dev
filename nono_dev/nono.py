@@ -2,20 +2,172 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
+import time
+import urllib.error
+import urllib.request
+
+
+# GitHub repo used for the "is nono outdated?" check.
+_NONO_REPO = "always-further/nono"
+# How long to trust the cached "latest release" lookup before refetching.
+_VERSION_CACHE_TTL = 24 * 60 * 60  # 24h on success
+_NEGATIVE_CACHE_TTL = 5 * 60       # 5min after a failed fetch (don't hammer the API)
+
+
+def _nono_cmd():
+    """Return the nono executable to invoke.
+
+    Honors NONO_BIN_PATH so users with a shell-level switcher (e.g. a
+    `nono-use` function flipping between cargo and brew installs) get
+    consistent behavior here. Subprocesses can't see shell aliases or
+    functions, so without this every call would resolve via PATH and
+    silently bypass the user's selection. Falls back to "nono" (PATH
+    lookup) when the env var is unset or points at something missing
+    or non-executable.
+    """
+    explicit = os.environ.get("NONO_BIN_PATH")
+    if explicit and os.path.isfile(explicit) and os.access(explicit, os.X_OK):
+        return explicit
+    return "nono"
 
 
 def check_installed():
     """Verify that the nono CLI is available."""
-    if not shutil.which("nono"):
+    if not _nono_available():
         print(
             "Error: 'nono' command not found. Install nono first: "
             "https://docs.nono.sh/cli/getting_started/installation",
             file=sys.stderr,
         )
         sys.exit(1)
+    _warn_if_outdated()
+
+
+def _nono_available():
+    """True if a nono binary can be located via NONO_BIN_PATH or PATH."""
+    cmd = _nono_cmd()
+    # Absolute path: presence already validated by _nono_cmd.
+    if os.path.isabs(cmd):
+        return True
+    return shutil.which(cmd) is not None
+
+
+def _warn_if_outdated():
+    """Print a one-line advisory if a newer nono release exists.
+
+    Fails open on any error: a missing version, network failure, or
+    parse error never blocks the command. Set NONO_DEV_SKIP_VERSION_CHECK=1
+    to silence the check entirely.
+    """
+    if os.environ.get("NONO_DEV_SKIP_VERSION_CHECK"):
+        return
+    installed = _installed_version()
+    latest = _latest_version()
+    if installed is None or latest is None:
+        return
+    if installed >= latest:
+        return
+    inst_str = ".".join(str(p) for p in installed)
+    latest_str = ".".join(str(p) for p in latest)
+    print(
+        f"Warning: nono {inst_str} is installed but {latest_str} is available.\n"
+        f"  Update: https://docs.nono.sh/cli/getting_started/installation\n"
+        f"  Silence: NONO_DEV_SKIP_VERSION_CHECK=1",
+        file=sys.stderr,
+    )
+
+
+def _installed_version():
+    """Return the installed nono version as a (major, minor, patch) tuple."""
+    try:
+        result = subprocess.run(
+            [_nono_cmd(), "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return None
+    if result.returncode != 0:
+        return None
+    # Try stdout first, fall back to stderr.
+    return _parse_version(result.stdout) or _parse_version(result.stderr)
+
+
+def _parse_version(text):
+    """Extract the first X.Y.Z found in text as a tuple of ints."""
+    if not text:
+        return None
+    m = re.search(r"(\d+)\.(\d+)\.(\d+)", text)
+    if not m:
+        return None
+    return tuple(int(g) for g in m.groups())
+
+
+def _latest_version():
+    """Return the latest published nono release as a tuple, or None."""
+    path = _cache_path()
+    cached = _read_cache(path)
+    if cached is not None:
+        # Cache is fresh; return its value (which may be None on a recent failure).
+        return cached["version"]
+
+    version = _fetch_latest_version()
+    _write_cache(path, version)
+    return version
+
+
+def _cache_path():
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache")
+    return os.path.join(base, "nono-dev", "nono-latest.json")
+
+
+def _read_cache(path):
+    """Return {'version': tuple|None} if the cache entry is still fresh."""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+    fetched_at = data.get("fetched_at", 0)
+    version_str = data.get("version") or ""
+    ttl = _VERSION_CACHE_TTL if version_str else _NEGATIVE_CACHE_TTL
+    if time.time() - fetched_at > ttl:
+        return None
+    return {"version": _parse_version(version_str)}
+
+
+def _write_cache(path, version):
+    """Persist the lookup result. Both successes and failures are cached."""
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        version_str = ".".join(str(p) for p in version) if version else ""
+        with open(path, "w") as f:
+            json.dump({"version": version_str, "fetched_at": time.time()}, f)
+    except OSError:
+        pass
+
+
+def _fetch_latest_version():
+    """Hit the GitHub releases API; return None on any failure."""
+    url = f"https://api.github.com/repos/{_NONO_REPO}/releases/latest"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "nono-dev",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read())
+    except (urllib.error.URLError, OSError, json.JSONDecodeError, TimeoutError, ValueError):
+        return None
+    return _parse_version(data.get("tag_name", ""))
 
 
 def run_detached(
@@ -48,7 +200,7 @@ def run_detached(
     nono_dev_src = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     extra_reads = [nono_dev_src]
 
-    cmd = ["nono", "run", "--detached", "--name", name, "--profile", profile]
+    cmd = [_nono_cmd(), "run", "--detached", "--name", name, "--profile", profile]
 
     # Skip large directory trees during trust scan and rollback preflight
     for skip in ["node_modules", "target", ".venv", "__pycache__", ".next"]:
@@ -124,7 +276,7 @@ def _parse_session_id(output):
 
 def ps_json(include_all=True):
     """List nono sessions as parsed JSON."""
-    cmd = ["nono", "ps", "--json"]
+    cmd = [_nono_cmd(), "ps", "--json"]
     if include_all:
         cmd.append("--all")
 
@@ -140,7 +292,8 @@ def ps_json(include_all=True):
 
 def attach(session_id):
     """Attach to a running nono session. Replaces the current process."""
-    os.execvp("nono", ["nono", "attach", session_id])
+    cmd = _nono_cmd()
+    os.execvp(cmd, [cmd, "attach", session_id])
 
 
 # -- pass-through argparse helpers -------------------------------------------
