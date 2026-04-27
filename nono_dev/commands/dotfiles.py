@@ -13,6 +13,18 @@ DOTFILES_MAP = {
     ".zshrc": "~/.zshrc",
     ".tmux.conf": "~/.tmux.conf",
     # starship.toml is handled separately via preset picker
+    # terminal configs are handled separately via terminal picker
+}
+
+# Terminal config bundles. Each value is a list of (src_filename, dest_path)
+# pairs, with dest_path expanded via os.path.expanduser.
+TERMINAL_BUNDLES = {
+    "wezterm": [
+        ("wezterm.lua", "~/.config/wezterm/wezterm.lua"),
+        ("config.lua",  "~/.config/wezterm/config.lua"),
+        ("events.lua",  "~/.config/wezterm/events.lua"),
+        ("theme.lua",   "~/.config/wezterm/theme.lua"),
+    ],
 }
 
 # Starship presets to offer (curated subset + our shipped config)
@@ -51,6 +63,11 @@ def add_parser(subparsers):
     parser.add_argument(
         "--preset", metavar="NAME",
         help="Starship preset to use (skip interactive picker)",
+    )
+    parser.add_argument(
+        "--terminal", metavar="NAME",
+        help=f"Terminal bundle to install (skip picker). One of: "
+             f"{', '.join(TERMINAL_BUNDLES)}, none",
     )
     parser.set_defaults(func=run)
 
@@ -246,6 +263,86 @@ def _pick_starship_preset(args):
         print(f"  {style.info('write')}  ~/.config/starship.toml ({style.value(preset_name)})")
 
 
+def _resolve_user_terminal_pref():
+    """Read [terminal].preferred from user config, return None if unset."""
+    from nono_dev import user_config
+    cfg = user_config.load()
+    return cfg.get("terminal", {}).get("preferred")
+
+
+def _pick_terminal(args):
+    """Install terminal config bundle (wezterm/etc.) via picker or flag."""
+    choice = args.terminal or _resolve_user_terminal_pref()
+
+    valid = list(TERMINAL_BUNDLES) + ["none"]
+    if choice is None:
+        # Interactive picker
+        print()
+        print(style.header("  Terminal Config"))
+        print()
+        options = list(TERMINAL_BUNDLES) + ["none"]
+        for i, name in enumerate(options, 1):
+            num = style.info(f"  {i})")
+            label = "skip (don't touch terminal config)" if name == "none" else f"install {name} config"
+            print(f"  {num} {style.value(name)}")
+            print(f"       {style.dim(label)}")
+        print()
+        try:
+            raw = input(f"  {style.prompt_text('Pick a terminal')} [1-{len(options)}]: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            print(f"  {style.muted('skip')}  terminal config (no selection)")
+            return
+
+        if not raw:
+            print(f"  {style.muted('skip')}  terminal config (no selection)")
+            return
+
+        try:
+            idx = int(raw) - 1
+            if not 0 <= idx < len(options):
+                raise ValueError
+        except ValueError:
+            print(f"  {style.error('error')}  Invalid choice: {raw}")
+            return
+        choice = options[idx]
+
+    if choice not in valid:
+        print(f"  {style.error('error')}  Unknown terminal: {choice}")
+        print(f"  {style.dim('  Available:')} {', '.join(valid)}")
+        return
+
+    if choice == "none":
+        print(f"  {style.muted('skip')}  terminal config ({style.value('none')})")
+        return
+
+    bundle = TERMINAL_BUNDLES[choice]
+    for src_name, dest_template in bundle:
+        dest_path = os.path.expanduser(dest_template)
+        dest_dir = os.path.dirname(dest_path)
+        if dest_dir and not os.path.isdir(dest_dir):
+            os.makedirs(dest_dir, exist_ok=True)
+
+        ref = importlib.resources.files(
+            f"nono_dev.dotfiles.terminals.{choice}"
+        ).joinpath(src_name)
+        content = ref.read_text(encoding="utf-8")
+
+        if os.path.exists(dest_path):
+            existing = open(dest_path, encoding="utf-8").read()
+            if existing == content:
+                print(f"  {style.muted('skip')}  {dest_template} (already up to date)")
+                continue
+            if not args.force:
+                backup = dest_path + ".bak"
+                shutil.copy2(dest_path, backup)
+                print(f"  {style.value('backup')}  {dest_template} -> {dest_template}.bak")
+
+        with open(dest_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"  {style.info('write')}  {dest_template} ({style.value(choice)})")
+
+
 def run(args):
     if not args.no_install:
         print()
@@ -257,6 +354,7 @@ def run(args):
     _deploy_dotfiles(args)
 
     _pick_starship_preset(args)
+    _pick_terminal(args)
 
     print()
     print(style.dim("  Done. Restart your shell or run: source ~/.zshrc"))
