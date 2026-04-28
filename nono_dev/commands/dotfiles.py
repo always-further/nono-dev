@@ -328,7 +328,10 @@ def _pick_terminal(args):
         ).joinpath(src_name)
         content = ref.read_text(encoding="utf-8")
 
-        if os.path.exists(dest_path):
+        if os.path.islink(dest_path) and not os.path.exists(dest_path):
+            os.unlink(dest_path)
+            print(f"  {style.muted('clean')}  {dest_template} (removed broken symlink)")
+        elif os.path.exists(dest_path):
             existing = open(dest_path, encoding="utf-8").read()
             if existing == content:
                 print(f"  {style.muted('skip')}  {dest_template} (already up to date)")
