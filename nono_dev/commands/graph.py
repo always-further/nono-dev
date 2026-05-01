@@ -25,6 +25,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -135,6 +136,77 @@ def add_parser(subparsers):
 
 
 # -- graphify wrappers -------------------------------------------------------
+
+
+# graphify 0.5.5's main() crashes on a NameError ('_os' is referenced without
+# import) in its tip-printing block, *after* the graph has already been
+# rebuilt and written to disk. We treat a non-zero exit as success only when
+# all three of these signals are present, so we never swallow a real failure.
+_GRAPHIFY_TIP_BUG_STDERR = "NameError: name '_os' is not defined"
+_GRAPHIFY_SUCCESS_STDOUT = "graph.json, graph.html and GRAPH_REPORT.md updated"
+
+
+def _run_graphify_capturing(cmd, cwd):
+    """Run graphify, tee its stdout/stderr live, and return (rc, out, err).
+
+    We need both behaviours: the user sees real-time progress (graphify
+    update can take a while), and we keep the full text so we can detect
+    the known graphify 0.5.5 tip-printing bug after the fact.
+
+    Sets GRAPHIFY_NO_TIPS=1 in the environment as future-proofing: today
+    the NameError fires before the env check so it has no effect, but when
+    graphify upstream fixes the typo this will skip the buggy code path
+    entirely. setdefault means we don't clobber a user override.
+    """
+    env = dict(os.environ)
+    env.setdefault("GRAPHIFY_NO_TIPS", "1")
+
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+
+    out_buf, err_buf = [], []
+
+    def _pump(src, sink, buf):
+        # readline returns "" at EOF; iter(..., "") makes that the stop
+        # sentinel. Flushing per-line keeps the live tee responsive.
+        for line in iter(src.readline, ""):
+            sink.write(line)
+            sink.flush()
+            buf.append(line)
+        src.close()
+
+    t_out = threading.Thread(target=_pump, args=(proc.stdout, sys.stdout, out_buf))
+    t_err = threading.Thread(target=_pump, args=(proc.stderr, sys.stderr, err_buf))
+    t_out.start()
+    t_err.start()
+    proc.wait()
+    t_out.join()
+    t_err.join()
+
+    return proc.returncode, "".join(out_buf), "".join(err_buf)
+
+
+def _is_graphify_tip_bug(graph_json, stdout_text, stderr_text):
+    """True iff this run hit graphify 0.5.5's post-success NameError.
+
+    Requires *all three* signals so the heuristic stays narrow:
+      - graph.json was actually written (file exists)
+      - graphify printed its end-of-update success line
+      - the exact NameError signature is in stderr
+    When graphify upstream fixes '_os', the NameError signal disappears
+    and this stops matching, so the normal exit-code path takes over.
+    """
+    return (
+        os.path.isfile(graph_json)
+        and _GRAPHIFY_SUCCESS_STDOUT in stdout_text
+        and _GRAPHIFY_TIP_BUG_STDERR in stderr_text
+    )
 
 
 def _check_graphify_installed():
@@ -662,15 +734,24 @@ def _build_or_update_target(config, name, target, *, update, no_ingest):
         # *target path* (not cwd), so where we run from doesn't actually
         # matter for output location. We rely on the symlink created by
         # _ensure_store_symlink to redirect writes into the store.
-        result = subprocess.run(cmd, cwd=target["path"])
+        rc, stdout_text, stderr_text = _run_graphify_capturing(cmd, target["path"])
     except FileNotFoundError:
         print(style.error("graphify not found on PATH"), file=sys.stderr)
         sys.exit(1)
-    if result.returncode != 0:
-        print(style.error(f"graphify exited with code {result.returncode}"), file=sys.stderr)
-        sys.exit(result.returncode)
 
     graph_json = _graph_json_path(store)
+
+    if rc != 0:
+        if _is_graphify_tip_bug(graph_json, stdout_text, stderr_text):
+            print(style.warning(
+                "graphify exited non-zero due to a known tip-printing bug "
+                "in 0.5.5 (NameError on '_os'), but the graph was rebuilt "
+                "successfully. Treating this run as a success."
+            ), file=sys.stderr)
+        else:
+            print(style.error(f"graphify exited with code {rc}"), file=sys.stderr)
+            sys.exit(rc)
+
     _write_manifest(store, name, target, graph_json)
 
     if sync is not None:
