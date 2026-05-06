@@ -30,7 +30,7 @@ nono-dev vm create|connect|exec|status|mount|destroy|recreate
 nono-dev sb list|attach|stop|prune|inspect
 nono-dev wt list|cd|start|cleanup
 nono-dev graph build|update|query|explain|path|status
-nono-dev git commit
+nono-dev git commit [--no-sign]   # --no-sign skips GPG signing (use inside sandboxes)
 nono-dev install|dotfiles|shell-init
 ```
 

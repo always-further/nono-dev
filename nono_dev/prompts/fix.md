@@ -41,7 +41,7 @@ Throughout this prompt, `<repo>` refers to the repo you resolved above, and `<nu
 6. Run CI tests locally to ensure your changes do not break existing functionality: `make ci`
 7. Run formatting and lint checks: `make fmt` and `make clippy`
 8. Once work is completed, ask the user before proceeding to making a pull request. Never go direct to the pull request. 
-9. Commit your changes with a clear commit message referencing the issue number (e.g., `fix: resolve panic on empty config (#<number>)`), and in the body `Resolves: #123`  and always use the `-s` flag to sign your commits. Never Reference Claude as a co-author. 
+9. Commit your changes with a clear commit message referencing the issue number (e.g., `fix: resolve panic on empty config (#<number>)`), and in the body `Resolves: #123`  and always use the `-s` flag to sign your commits. Never Reference Claude as a co-author. If the user asks you to use `nd git commit` to draft the message, run it with `--no-sign` because you are inside a sandbox and the signing key is not reachable: `nd git commit --no-sign`. 
 10. Push the branch when the fix is ready, But confirm with the user first. 
 
 

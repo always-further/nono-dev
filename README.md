@@ -138,7 +138,7 @@ nono-dev vm create|connect|exec|status|mount|destroy|recreate
 nono-dev sb list|attach|stop|prune|inspect
 nono-dev wt list|cd|start|cleanup
 nono-dev graph build|update|query|explain|path|status
-nono-dev git commit                AI-generated conventional commit
+nono-dev git commit [--no-sign]    AI-generated conventional commit (--no-sign skips GPG signing)
 
 nono-dev install [--force]         Install `nono-dev` / `nd` + sandbox profile
 nono-dev dotfiles                  Write shipped dotfiles to ~

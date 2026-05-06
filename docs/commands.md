@@ -269,15 +269,24 @@ Worktree 'issue-42' has uncommitted changes (+34 -12). Delete anyway? [y/N]
 Generate a commit message using Gemini AI and commit with sign-off.
 
 ```bash
-nono-dev git commit
+nono-dev git commit                # honors your git signing config
+nono-dev git commit --no-sign      # skip GPG signing (sandbox / keyless envs)
+nono-dev git commit -a              # also stage untracked + unstaged changes
 ```
 
 This command:
 
-1. Collects all staged, unstaged, and untracked changes
+1. Collects staged changes (or stages everything first if `-a` is passed, or nothing is staged)
 2. Sends the diff to Gemini 2.5 Flash to generate a [conventional commit](https://www.conventionalcommits.org/) message
 3. Shows the proposed message and asks for confirmation
-4. Stages all changes and commits with `git commit -s`
+4. Commits with `git commit -s` (sign-off). GPG signing is delegated to your git config
+
+Flags:
+
+| Flag | Description |
+| --- | --- |
+| `-a, --all` | Stage all changes (including untracked) before committing |
+| `--no-sign` | Pass `--no-gpg-sign` to git. Use this when running inside a sandbox or any environment where the local GPG/SSH signing key isn't reachable. Without it, signing follows your git config (`commit.gpgsign`, `gpg.format`, `user.signingkey`). |
 
 Options at the prompt:
 
@@ -286,6 +295,8 @@ Options at the prompt:
 - **e** -- open the message in `$EDITOR` for manual editing before committing
 
 Requires `GEMINI_API_KEY` or `GOOGLE_API_KEY` set in your environment.
+
+**Sandboxed agents** (`nd fix`, `nd feature`, etc.) cannot reach the host's signing key, so they should always invoke `nd git commit --no-sign`. The shipped `fix` and `feature` prompts already tell agents to do this when asked to draft commit messages.
 
 ---
 

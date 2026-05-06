@@ -53,6 +53,14 @@ def add_parser(subparsers):
              "Without this flag, if anything is staged only the staged changes "
              "are committed; if nothing is staged, all changes are staged.",
     )
+    commit_parser.add_argument(
+        "--no-sign",
+        action="store_true",
+        help="Pass --no-gpg-sign to git commit. Use this when running in a "
+             "sandbox or any environment where the local GPG/SSH signing key "
+             "is not reachable. Without this flag, signing follows your git "
+             "config (commit.gpgsign, gpg.format, user.signingkey).",
+    )
     commit_parser.set_defaults(func=run_commit)
 
 
@@ -102,12 +110,18 @@ def _stage_all():
     subprocess.run(["git", "add", "-A"], check=True)
 
 
-def _commit(message):
-    """Commit with sign-off."""
-    result = subprocess.run(
-        ["git", "commit", "-s", "--no-gpg-sign", "-m", message],
-        capture_output=True, text=True,
-    )
+def _commit(message, no_sign=False):
+    """Commit with sign-off.
+
+    GPG signing follows the user's git config by default. Pass
+    ``no_sign=True`` to add ``--no-gpg-sign`` for environments where the
+    signing key is not reachable (e.g. sandboxed agents).
+    """
+    argv = ["git", "commit", "-s", "-m", message]
+    if no_sign:
+        # Insert before -m so the flag clearly applies to this invocation.
+        argv.insert(2, "--no-gpg-sign")
+    result = subprocess.run(argv, capture_output=True, text=True)
     if result.returncode != 0:
         print(style.error(f"Commit failed: {result.stderr.strip()}"), file=sys.stderr)
         sys.exit(1)
@@ -200,7 +214,7 @@ def run_commit(args):
 
     if stage_before_commit:
         _stage_all()
-    _commit(message)
+    _commit(message, no_sign=getattr(args, "no_sign", False))
 
     # Offer to push
     branch = _current_branch()

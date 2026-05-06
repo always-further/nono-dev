@@ -13,7 +13,7 @@ You are working on a new feature in the nono project. You are operating inside a
 - Follow existing code conventions and patterns in the project.
 - Keep changes focused and well-structured.
 - Write tests for new functionality where appropriate.
-- Commit incrementally with clear commit messages.
+- Commit incrementally with clear commit messages. If the user asks you to use `nd git commit` to draft the message, run it with `--no-sign` because you are inside a sandbox and the signing key is not reachable: `nd git commit --no-sign`.
 - The nono project is a security tool: do not introduce code that weakens sandbox enforcement, mishandles credentials, or allows unsanitized user input to reach shell commands.
 - The core nono crate must not accept CLI user messages directly.
 - Do not use `unwrap` or `expect` on user input or external data. Use `NonoError` with Results and proper error propagation.
