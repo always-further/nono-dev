@@ -22,6 +22,7 @@ include = ["nono_dev*"]
     "prompts/*.md",
     "dotfiles/.*",
     "dotfiles/*.toml",
+    "dotfiles/terminals/*/*",
     "profiles/*.json",
     "schemas/*.json",
 ]
