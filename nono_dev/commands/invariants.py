@@ -24,7 +24,7 @@ import re
 import sys
 from datetime import date
 
-from nono_dev import style
+from nono_dev import nono, project_config, style
 
 
 # -- argparse wiring ---------------------------------------------------------
@@ -35,6 +35,7 @@ def _invariants_help(_args):
     print(style.banner("  nono-dev invariants"))
     print()
     print(style.help_row("invariants init", "[path] [--force]", "Create a starter invariants file for this repo"))
+    print(style.help_row("invariants draft", "", "Spawn a sandboxed agent to draft a real invariants file"))
     print(style.help_row("invariants validate", "[path]", "Validate an invariants file against the schema"))
     print()
     sys.exit(0)
@@ -59,6 +60,18 @@ def add_parser(subparsers):
         help="Overwrite an existing file",
     )
     init_parser.set_defaults(func=run_init)
+
+    # draft
+    draft_parser = inv_sub.add_parser(
+        "draft",
+        help="Spawn a sandboxed agent that drafts a real invariants file using nd graph",
+    )
+    draft_parser.add_argument(
+        "--no-rollback", action="store_true",
+        help="Disable rollback snapshots for this session",
+    )
+    nono.add_sandbox_pass_through_args(draft_parser)
+    draft_parser.set_defaults(func=run_draft)
 
     # validate
     val_parser = inv_sub.add_parser(
@@ -588,3 +601,80 @@ def run_init(args):
         f"  {style.label('next:')} edit the example entries, then run "
         f"{style.value('nd invariants validate')}"
     )
+
+
+# -- draft: launch a sandboxed agent to bootstrap a real invariants file ----
+#
+# This is the headless launcher for the invariants-init skill. The skill
+# itself lives at skills/invariants-init/SKILL.md (for slash-command
+# discovery) and is mirrored into nono_dev/prompts/invariants_draft.md so
+# the package ships it as a system prompt. Both copies are kept in sync.
+
+
+def _draft_session_name(config):
+    """Build a session name unique to the current repo.
+
+    Uses the repo slug from config (last path segment of "org/repo") so
+    drafts in different repos don't collide. Falls back to a generic name
+    when the repo can't be inferred.
+    """
+    repo = project_config.get_repo(config) or ""
+    slug = repo.split("/", 1)[1] if "/" in repo else (repo or "repo")
+    # _slugify-equivalent: keep the result safe for session names.
+    slug = re.sub(r"[^a-z0-9._-]+", "-", slug.lower()).strip("._-") or "repo"
+    return f"invariants-draft-{slug}"
+
+
+def run_draft(args):
+    """Spawn a sandboxed Claude session loaded with the invariants-init skill."""
+    nono.check_installed()
+    config = project_config.load()
+    project_root = project_config.get_project_root(config)
+
+    graph_line = project_config.graph_path_for_prompt(config, repo_hint=project_root)
+    staleness = project_config.graph_staleness_warning(config, repo_hint=project_root)
+    if staleness:
+        print(style.warning(staleness), file=sys.stderr)
+
+    prompt_path = project_config.get_rendered_prompt_path(
+        "invariants_draft", config, substitutions={"graph_path": graph_line},
+    )
+
+    rollback = project_config.get_rollback(config)
+    if args.no_rollback:
+        rollback["enabled"] = False
+
+    workdir = os.getcwd()
+    git_dir = os.path.join(project_root, ".git")
+    session_name = _draft_session_name(config)
+
+    # Refuse to launch a duplicate; surface attach instructions for the
+    # existing session instead.
+    sessions = nono.ps_json(include_all=False)
+    for s in sessions:
+        if s.get("name") == session_name:
+            print(style.warning(f"Session '{session_name}' is already running."))
+            print(
+                f"  {style.label('Attach:')} "
+                f"{style.value('nono-dev sb attach ' + s.get('session_id', session_name))}"
+            )
+            return
+
+    extra_allows, extra_reads = nono.normalize_sandbox_paths(args)
+    session_id = nono.run_detached(
+        session_name,
+        # The skill writes to proj/invariants.yaml under the project root,
+        # so project_root needs write access; .git for any commits the
+        # agent decides to make if the user asks.
+        allows=[project_root, git_dir] + extra_allows,
+        reads=extra_reads,
+        allow_cwd=True,
+        system_prompt=prompt_path,
+        rollback=rollback,
+        workdir=workdir,
+    )
+
+    print(style.success("Invariants draft session started"))
+    print(f"  {style.label('Workspace:')} {style.value(workdir)}")
+    print(f"  {style.label('Session:')}   {style.value(session_id)}")
+    print(f"  {style.label('Attach:')}    {style.value('nono-dev sb attach ' + session_name)}")

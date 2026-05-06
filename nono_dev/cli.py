@@ -81,6 +81,7 @@ def _print_main_help():
 
     print(style.header("  Invariants") + style.dim("  (nono-dev invariants ...)"))
     _help_row("invariants init", "[path] [--force]", "Create a starter invariants file for this repo")
+    _help_row("invariants draft", "", "Spawn a sandboxed agent to draft a real invariants file")
     _help_row("invariants validate", "[path]", "Validate invariants.yaml against the schema")
     print()
 

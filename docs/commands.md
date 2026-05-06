@@ -399,6 +399,31 @@ Behaviour:
 
 After writing the file, edit the example entries to match real rules in your repo, then run `nd invariants validate`.
 
+### `invariants draft`
+
+Spawn a sandboxed Claude agent that drafts a real `invariants.yaml` for the current repo, combining the knowledge graph with codebase context.
+
+```bash
+nono-dev invariants draft
+```
+
+What the agent does:
+
+- Reads `CLAUDE.md`, `README.md`, `docs/architecture/`, `proj/ARCHITECTURE*.md` for design rationale and uses each as a `source:` citation.
+- Greps for existing `// invariant <id>:` comments in source files.
+- Inspects lint / format config (clippy, ruff, eslint strict, mypy) for enforced rules.
+- Inspects CI required checks (DCO sign-off, `make ci`, etc.) for process invariants.
+- Pulls recent security / regression issues via `gh` for known footguns.
+- Uses `nd graph status / query / explain` to map subsystems and discover load-bearing types.
+- Groups findings into themed sections (Structural / Path-IO / Coding standards / Secrets / Testing / IPC / Process) and writes the draft to `proj/invariants.yaml`.
+- Validates via `nd invariants validate` and iterates until clean.
+
+Output goes to `proj/invariants.yaml` (the draft-phase fallback path), never overwriting a curated `docs/invariants.yaml`. After review and curation, `git mv proj/invariants.yaml docs/invariants.yaml` to promote.
+
+The skill lives at `skills/invariants-init/SKILL.md` for slash-command discovery (`/draft-invariants`); a byte-identical copy is shipped at `nono_dev/prompts/invariants_draft.md` so the launcher can use it as a system prompt. Either file can be edited; keep them in sync.
+
+Pass `--no-rollback` to skip rollback snapshots, or use the standard `--allow` / `--read` sandbox pass-through flags to widen the agent's grants.
+
 ### `invariants validate`
 
 Validate an invariants file against the shipped JSON Schema.
