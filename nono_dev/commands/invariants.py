@@ -34,6 +34,7 @@ def _invariants_help(_args):
     print()
     print(style.banner("  nono-dev invariants"))
     print()
+    print(style.help_row("invariants init", "[path] [--force]", "Create a starter invariants file for this repo"))
     print(style.help_row("invariants validate", "[path]", "Validate an invariants file against the schema"))
     print()
     sys.exit(0)
@@ -43,6 +44,21 @@ def add_parser(subparsers):
     inv_parser = subparsers.add_parser("invariants", help="Manage the invariants.yaml file")
     inv_sub = inv_parser.add_subparsers(dest="invariants_command")
     inv_parser.set_defaults(func=_invariants_help)
+
+    # init
+    init_parser = inv_sub.add_parser(
+        "init",
+        help="Create a starter invariants file for this repo",
+    )
+    init_parser.add_argument(
+        "path", nargs="?", default=None,
+        help="Path to write (default: docs/invariants.yaml)",
+    )
+    init_parser.add_argument(
+        "--force", action="store_true",
+        help="Overwrite an existing file",
+    )
+    init_parser.set_defaults(func=run_init)
 
     # validate
     val_parser = inv_sub.add_parser(
@@ -425,3 +441,150 @@ def run_validate(args):
     title = schema.get("title", "Invariants")
     print(style.success(f"{input_path}: {count} entries valid ({title})"))
     print(f"  {style.label('schema:')} {style.value(schema_path)}")
+
+
+# -- init: write a starter template ------------------------------------------
+#
+# The template inherits the structural shape of a real invariants file
+# (header prose, themed section dividers, multiple entries) so users learn
+# the convention from the first entry, not after several rounds of review.
+# Every example entry validates green out of the box. The `example-` id
+# prefix and the inline call-to-action make it obvious they're placeholders.
+#
+# YAML-only on purpose: the inline comments and section dividers are doing
+# real work, and JSON loses all of that. Users who want JSON can convert
+# the result.
+
+_TEMPLATE_YAML = """\
+# Load-bearing invariants for this codebase.
+#
+# Purpose
+# -------
+# Each entry below is a rule that should not be broken without a conscious
+# decision and a paper trail. The triage / review / fix workflows join these
+# against the subsystems affected by an issue or PR and cite the relevant
+# invariants so reviewers and agents both work from the same checklist.
+#
+# Schema (validated by `nd invariants validate`)
+# ----------------------------------------------
+# - id          slug, stable across runs. Reference in review comments.
+# - subsystems  plain-English tags. Use generously -- a contributor describing
+#                an issue may use any of several names for the same area.
+# - statement   one sentence (or short paragraph). Must be actionable.
+# - source      link to a doc + anchor, or a GitHub URL. Never leave empty.
+# - severity    high   -- breaking it creates a security hole or correctness bug
+#                medium -- violates API contract, testing discipline, or
+#                          platform-specific behaviour
+#                low    -- style / ergonomics / process
+#
+# When you add an invariant
+# -------------------------
+# - If it's a *decision* (why we did it this way), link to a design doc.
+# - If it's a *rule* (don't do X), link to CLAUDE.md, an architecture doc,
+#   or an issue that motivated it.
+# - Keep statements concrete. "Handle errors well" is not an invariant;
+#   "Return Result; library code must not .unwrap() or .expect()" is.
+#
+# When you break an invariant
+# ---------------------------
+# - It should require a conscious decision with a comment citing the id
+#   (e.g. `// invariant <id>: intentionally deferred, see #NNN`).
+#
+# Replace the example entries below with rules that actually apply here,
+# then run `nd invariants validate` to check.
+
+# ---------------------------------------------------------------------------
+# Structural
+# ---------------------------------------------------------------------------
+
+- id: example-no-unwrap-on-fallible-values
+  subsystems: [core, error-handling]
+  statement: >-
+    Library code must not call .unwrap() or .expect() on values originating
+    from user input, IO, or any fallible source. Propagate errors via
+    Result; reserve panics for genuinely unreachable conditions.
+  source: CLAUDE.md#error-handling
+  severity: high
+  added: {today}
+  tags: [error-handling, robustness]
+
+- id: example-no-shell-injection
+  subsystems: [cli, security]
+  statement: >-
+    User-supplied strings must never be interpolated into shell command
+    lines. Always pass arguments as a list to the subprocess API, never
+    via shell=True or string concatenation.
+  source: CLAUDE.md#security
+  severity: high
+  related: [example-no-unwrap-on-fallible-values]
+
+# ---------------------------------------------------------------------------
+# Coding standards
+# ---------------------------------------------------------------------------
+
+- id: example-no-dead-code-allow
+  subsystems: [code-quality, testing]
+  statement: >-
+    Avoid #[allow(dead_code)] or equivalent suppressions. If code is unused,
+    either remove it or add tests that exercise it. Dead code accumulates
+    silently and hides real gaps in coverage.
+  source: CLAUDE.md#coding-standards
+  severity: low
+
+# ---------------------------------------------------------------------------
+# Testing
+# ---------------------------------------------------------------------------
+
+# (Add testing-discipline invariants here.)
+
+# ---------------------------------------------------------------------------
+# Process
+# ---------------------------------------------------------------------------
+
+# (Add process / CI / commit-policy invariants here.)
+"""
+
+
+def run_init(args):
+    """Write a starter invariants.yaml at the requested path."""
+    target = args.path or "docs/invariants.yaml"
+
+    # YAML-only: see comment above _TEMPLATE_YAML.
+    ext = os.path.splitext(target)[1].lower()
+    if ext not in (".yaml", ".yml"):
+        print(
+            style.error(
+                f"`init` only writes YAML; got {target!r}. "
+                "Use a .yaml extension or omit the path."
+            ),
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if os.path.exists(target) and not args.force:
+        print(
+            style.error(
+                f"{target} already exists. Pass --force to overwrite, "
+                "or run `nd invariants validate` to check the existing file."
+            ),
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    parent = os.path.dirname(target)
+    if parent and not os.path.isdir(parent):
+        os.makedirs(parent, exist_ok=True)
+
+    content = _TEMPLATE_YAML.format(today=date.today().isoformat())
+    try:
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(content)
+    except OSError as exc:
+        print(style.error(f"could not write {target}: {exc}"), file=sys.stderr)
+        sys.exit(2)
+
+    print(style.success(f"Wrote {target}"))
+    print(
+        f"  {style.label('next:')} edit the example entries, then run "
+        f"{style.value('nd invariants validate')}"
+    )

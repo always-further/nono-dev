@@ -366,6 +366,58 @@ Columns: TARGET, PATH, STORE, BUILT (date), HEAD (short SHA at build), BEHIND (c
 
 ---
 
+## `invariants` -- Load-Bearing Repo Rules
+
+A per-repo `invariants.yaml` file lists the load-bearing rules for the codebase: things that should not be broken without a conscious decision and a paper trail. Triage / review / fix workflows join these against the subsystems affected by an issue or PR and cite the relevant invariants in their output.
+
+The shipped JSON Schema lives at `nono_dev/schemas/invariants.schema.json` and is packaged with `nono-dev`. Each entry has five required fields (`id`, `subsystems`, `statement`, `source`, `severity`) and four optional ones (`added`, `last_reviewed`, `tags`, `related`).
+
+Conventional file paths (resolved in order):
+
+1. `docs/invariants.yaml`
+2. `docs/invariants.json`
+3. `proj/invariants.yaml`
+4. `proj/invariants.json`
+
+### `invariants init`
+
+Write a starter `invariants.yaml` for this repo. The template inherits the structural shape of a real invariants file (header prose, themed section dividers, multiple example entries) so users learn the convention from the first entry.
+
+```bash
+nono-dev invariants init                          # docs/invariants.yaml
+nono-dev invariants init proj/invariants.yaml     # explicit path
+nono-dev invariants init --force                  # overwrite an existing file
+```
+
+Behaviour:
+
+- Default target is `docs/invariants.yaml`.
+- Errors if the target exists, unless `--force` is passed.
+- Creates the parent directory if it doesn't exist.
+- YAML-only: the inline comments and section dividers are doing real work and JSON loses all of that. Pass a `.yaml` / `.yml` path; other extensions error.
+- The example entries all start with `id: example-...` and validate green out of the box -- a fresh `nd invariants init && nd invariants validate` round-trips cleanly so users can verify their setup before editing.
+
+After writing the file, edit the example entries to match real rules in your repo, then run `nd invariants validate`.
+
+### `invariants validate`
+
+Validate an invariants file against the shipped JSON Schema.
+
+```bash
+nono-dev invariants validate                       # auto-detect path
+nono-dev invariants validate path/to/file.yaml     # explicit
+nono-dev invariants validate --schema custom.json  # custom schema
+```
+
+Behaviour:
+
+- If no path is given, looks for the conventional paths in order (`docs/invariants.yaml` first, then `.json` and `proj/` fallbacks).
+- YAML inputs require PyYAML; JSON inputs are stdlib-only. The command prints a clear install hint if PyYAML is missing.
+- Validator is hardcoded to the schema's actual keyword subset (no `jsonschema` dependency). If the shipped schema changes, the validator is updated alongside it.
+- Exits 0 with an `N entries valid` summary on success; exits 1 with a list of `entry[i] (id): ...` errors otherwise.
+
+---
+
 ## `vm` -- Lima VM Management
 
 ### VM name resolution

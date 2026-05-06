@@ -64,7 +64,7 @@ def _print_main_help():
     print()
 
     print(style.header("  Git Operations") + style.dim("  (nono-dev git ...)"))
-    _help_row("git commit", "", "AI-generated conventional commit")
+    _help_row("git commit", "[--no-sign]", "AI-generated conventional commit")
     print()
 
     print(style.header("  Knowledge Graph") + style.dim("  (nono-dev graph ...)"))
@@ -80,7 +80,8 @@ def _print_main_help():
     print()
 
     print(style.header("  Invariants") + style.dim("  (nono-dev invariants ...)"))
-    _help_row("invariants", "validate [path]", "Validate invariants.yaml against the schema")
+    _help_row("invariants init", "[path] [--force]", "Create a starter invariants file for this repo")
+    _help_row("invariants validate", "[path]", "Validate invariants.yaml against the schema")
     print()
 
     print(style.header("  VM Management") + style.dim("  (nono-dev vm ...)"))
