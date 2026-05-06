@@ -119,6 +119,11 @@ def _collect_worktrees(sessions, config):
         if not workdir or workdir in seen_roots:
             continue
         seen_roots.add(workdir)
+        # The session's workdir may have been deleted out from under us
+        # (e.g. user `rm -rf`d a bare-session directory). Skip it rather
+        # than crashing the whole `sb list` table.
+        if not os.path.isdir(workdir):
+            continue
         wts = worktree.list_worktrees(cwd=workdir)
         for wt in wts:
             if not any(existing.get("path") == wt.get("path") for existing in all_wts):
@@ -132,6 +137,11 @@ def _style_cell(header, cell):
     if header == "NAME":
         return style.value(cell) if cell != "-" else style.dim(cell)
     if header == "PATH":
+        # Highlight the "(missing)" suffix in warning color so it reads
+        # distinctly from a normal muted path.
+        suffix = " (missing)"
+        if cell.endswith(suffix):
+            return style.muted(cell[: -len(suffix)]) + " " + style.warning("(missing)")
         return style.muted(cell)
     if header == "TYPE":
         type_colors = {
@@ -222,6 +232,9 @@ def run(_args):
 
     headers = ["PROJECT", "NAME", "PATH", "TYPE", "ISSUE/PR", "SESSION", "STATUS", "ATTACH", "AGE", "CHANGES"]
     rows = []
+    # Names of sessions whose workdir on disk no longer exists. We still
+    # render their row, but flag the PATH cell and surface a footer hint.
+    missing = []
 
     for s in sessions:
         name = s.get("name", "")
@@ -241,12 +254,22 @@ def run(_args):
                 adds, dels = worktree.diff_stat(wt["path"])
                 changes = f"+{adds} -{dels}"
             else:
+                wt_path = f"{wt_path} (missing)"
+                missing.append(name)
                 changes = "?"
-        elif session_type == "bare" and s.get("workdir") and os.path.isdir(s["workdir"]):
+        elif session_type == "bare" and s.get("workdir"):
             wt_name = name
-            wt_path = _relative_path(s["workdir"], project_root)
-            adds, dels = worktree.diff_stat(s["workdir"])
-            changes = f"+{adds} -{dels}"
+            if os.path.isdir(s["workdir"]):
+                wt_path = _relative_path(s["workdir"], project_root)
+                adds, dels = worktree.diff_stat(s["workdir"])
+                changes = f"+{adds} -{dels}"
+            else:
+                # Bare session whose workdir was deleted out from under us
+                # (e.g. user `rm -rf`d the directory). Keep the row visible
+                # so the orphaned session can be discovered and stopped.
+                wt_path = f"{_relative_path(s['workdir'], project_root)} (missing)"
+                missing.append(name)
+                changes = "?"
         else:
             wt_name = name
             wt_path = "-"
@@ -255,3 +278,16 @@ def run(_args):
         rows.append([project, wt_name, wt_path, session_type, ref, session_id, status, attachment, age, changes])
 
     _print_table(headers, rows)
+
+    if missing:
+        print()
+        noun = "session has" if len(missing) == 1 else "sessions have"
+        print(style.warning(
+            f"{len(missing)} {noun} a missing workdir: {', '.join(missing)}"
+        ))
+        cmd = (
+            f"nd sb stop {missing[0]}"
+            if len(missing) == 1
+            else "nd sb stop <name>"
+        )
+        print(style.muted(f"  Run `{cmd}` to clean up."))

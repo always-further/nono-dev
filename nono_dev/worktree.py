@@ -32,7 +32,16 @@ def list_worktrees(cwd=None):
     """List all git worktrees, returning a list of dicts.
 
     Each dict has keys: path, branch, head.
+
+    Returns an empty list if ``cwd`` is provided but no longer exists on
+    disk (e.g. a session whose project directory has been deleted).
     """
+    # subprocess.run raises FileNotFoundError if cwd is missing, which
+    # would otherwise crash callers like `nd sb list`. Treat a missing
+    # cwd the same as "no worktrees here".
+    if cwd is not None and not os.path.isdir(cwd):
+        return []
+
     result = subprocess.run(
         ["git", "worktree", "list", "--porcelain"],
         capture_output=True, text=True,
