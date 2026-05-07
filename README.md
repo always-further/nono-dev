@@ -79,7 +79,9 @@ nono-dev wt cleanup --all       # Remove all managed worktrees
 nono-dev vm create              # Create an Ubuntu VM with Rust toolchain
 nono-dev vm create --shell-setup  # With zsh, starship, eza, bat, fd, ripgrep, direnv, fzf
 nono-dev vm connect             # Shell into the VM
-nono-dev vm status              # List VMs
+nono-dev vm list                # List VMs
+nono-dev vm status              # Show VM status
+nono-dev vm shutdown            # Stop sync and shut down the VM
 nono-dev vm mount               # Show what's currently synced
 nono-dev vm mount /path/to/repo # Switch to a different project
 nono-dev vm destroy             # Delete the VM
@@ -111,7 +113,7 @@ nono-dev review <pr>              Review a GitHub PR
 nono-dev feature <branch>         Start a feature in a worktree
 nono-dev bare [name]              Start a sandboxed Claude session in the current checkout
 
-nono-dev vm create|connect|status|mount|destroy|recreate
+nono-dev vm create|connect|list|status|shutdown|mount|destroy|recreate
 nono-dev sb list|attach|stop|prune
 nono-dev wt list|cd|cleanup
 nono-dev git commit               AI-generated conventional commit

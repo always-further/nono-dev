@@ -28,7 +28,11 @@ def run(args):
         sys.exit(1)
 
     status = lima.vm_status(args.name, lima_home=lima_home)
-    if status != "Running":
+    if status == "Broken":
+        print(f"VM '{args.name}' is Broken (likely after host sleep or storage disconnect). Recovering...")
+        lima.force_stop_vm(args.name, lima_home=lima_home)
+        lima.start_vm(args.name, lima_home=lima_home)
+    elif status != "Running":
         print(f"VM '{args.name}' is not running (status: {status}). Starting...")
         lima.start_vm(args.name, lima_home=lima_home)
 
