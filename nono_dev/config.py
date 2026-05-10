@@ -20,7 +20,7 @@ DISTROS = {
         "base_packages": [
             "gcc", "gcc-c++", "make", "pkg-config",
             "openssl-devel", "dbus-devel", "cmake", "perl", "git", "curl",
-            "jq", "npm",
+            "jq", "npm", "strace",
         ],
         "shell_packages": [
             "zsh", "tmux", "ripgrep", "bat", "fd-find", "direnv", "fzf", "eza",
@@ -38,7 +38,7 @@ DISTROS = {
         "base_packages": [
             "build-essential", "pkg-config", "libssl-dev",
             "libdbus-1-dev", "cmake", "perl", "git", "curl",
-            "jq", "npm",
+            "jq", "npm", "strace",
         ],
         "shell_packages": [
             "zsh", "tmux", "ripgrep", "bat", "fd-find", "direnv", "fzf",
@@ -56,7 +56,7 @@ DISTROS = {
         "base_packages": [
             "build-essential", "pkg-config", "libssl-dev",
             "libdbus-1-dev", "cmake", "perl", "git", "curl",
-            "jq", "npm",
+            "jq", "npm","strace",
         ],
         "shell_packages": [
             "zsh", "tmux", "ripgrep", "bat", "fd-find", "direnv", "fzf",

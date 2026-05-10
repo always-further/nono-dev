@@ -177,6 +177,15 @@ def stop_vm(name, lima_home=None):
     )
 
 
+def force_stop_vm(name, lima_home=None):
+    """Force-stop a Lima VM (used to clear a Broken state)."""
+    subprocess.run(
+        ["limactl", "stop", "--force", name],
+        capture_output=True, text=True,
+        env=_lima_env(lima_home),
+    )
+
+
 def delete_vm(name, lima_home=None):
     """Delete a Lima VM."""
     subprocess.run(
@@ -280,6 +289,9 @@ def start_sync(vm_name, host_path, guest_path, lima_home=None):
 
 def stop_sync(vm_name, lima_home=None):
     """Terminate the mutagen sync session for a VM."""
+    if not shutil.which("mutagen"):
+        return
+
     session_name = _sync_session_name(vm_name)
     subprocess.run(
         ["mutagen", "sync", "terminate", session_name],

@@ -25,7 +25,7 @@ Commands are grouped under `vm`, `sb`, and `wt`:
 
 ```
 nono-dev triage|fix|review|feature|bare   # Top-level workflow commands
-nono-dev vm create|connect|status|destroy|recreate
+nono-dev vm create|connect|list|status|shutdown|mount|destroy|recreate
 nono-dev sb list|attach|stop|prune
 nono-dev wt list|cd|cleanup
 nono-dev shell-init

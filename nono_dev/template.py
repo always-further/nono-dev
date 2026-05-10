@@ -97,6 +97,9 @@ def build_lima_config(
             "",
             "# Install cargo-audit",
             "cargo install cargo-audit",
+            "",
+            "# Install demonator",
+            "cargo install demonator",
         ])
 
     user_script = "\n".join(user_lines) + "\n"

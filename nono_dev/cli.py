@@ -24,6 +24,8 @@ from nono_dev.commands import (
     shell_init,
     stop,
     triage,
+    vm_list,
+    vm_shutdown,
     vm_status,
     worktree_cmd,
 )
@@ -65,7 +67,9 @@ def _print_main_help():
     print(style.header("  VM Management") + style.dim("  (nono-dev vm ...)"))
     _help_row("vm create", "[name]", "Create a development VM")
     _help_row("vm connect", "[name]", "Connect to a VM")
+    _help_row("vm list", "", "List VMs")
     _help_row("vm status", "", "Show VM status")
+    _help_row("vm shutdown", "[name]", "Shutdown a VM")
     _help_row("vm mount", "[path]", "Show or switch the synced project directory")
     _help_row("vm destroy", "[name]", "Delete a VM")
     _help_row("vm recreate", "[name]", "Destroy and recreate a VM")
@@ -138,7 +142,9 @@ def main():
     vm_parser.set_defaults(func=_print_group_help("vm", [
         ("create", "[name]", "Create a development VM"),
         ("connect", "[name]", "Connect to a VM"),
+        ("list", "", "List VMs"),
         ("status", "", "Show VM status"),
+        ("shutdown", "[name]", "Shutdown a VM"),
         ("mount", "[path]", "Show or switch the synced project directory"),
         ("destroy", "[name]", "Delete a VM"),
         ("recreate", "[name]", "Destroy and recreate a VM"),
@@ -146,7 +152,9 @@ def main():
     vm_sub = vm_parser.add_subparsers(dest="vm_command")
     create.add_parser(vm_sub)
     connect.add_parser(vm_sub)
+    vm_list.add_parser(vm_sub)
     vm_status.add_parser(vm_sub)
+    vm_shutdown.add_parser(vm_sub)
     mount.add_parser(vm_sub)
     destroy.add_parser(vm_sub)
     recreate.add_parser(vm_sub)
