@@ -54,13 +54,14 @@ def run(args):
     else:
         abs_path = result
 
-    # Grant read access to the main repo so Claude's Read/Edit tools
+    # Grant read access to the main repo so the agent's Read/Edit tools
     # can follow symlinks from the worktree back to the canonical paths.
     # Grant write access to .git/ for commits, index, refs, objects.
     git_dir = os.path.join(project_root, ".git")
 
     session_id = nono.run_detached(
         session_name,
+        agent_config=nono.get_agent_config(config),
         allows=[abs_path, git_dir],
         reads=[project_root],
         allow_cwd=True,

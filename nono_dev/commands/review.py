@@ -1,4 +1,6 @@
-"""Review a GitHub pull request using a sandboxed Claude agent."""
+"""Review a GitHub pull request using a sandboxed agent."""
+
+import os
 
 from nono_dev import nono, project_config, style
 
@@ -39,6 +41,7 @@ def run(args):
 
     session_id = nono.run_detached(
         session_name,
+        agent_config=nono.get_agent_config(config),
         allows=[project_root],
         allow_cwd=True,
         system_prompt=prompt_path,

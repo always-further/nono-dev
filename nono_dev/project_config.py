@@ -13,6 +13,7 @@ DEFAULTS = {
     "rollback": {"enabled": False, "dest": None, "exclude": []},
     "prompts": {},
     "lima": {"home": None},
+    "agent": {"binary": "claude"},
 }
 
 
