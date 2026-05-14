@@ -181,8 +181,16 @@ def run_detached(
     user_prompt=None,
     rollback=None,
     workdir=None,
+    agent_args=None,
 ):
     """Run a command inside nono in detached mode.
+
+    `agent_args` is an iterable of extra arguments forwarded verbatim to
+    the inner coding-agent invocation (today: `claude`). Use this for
+    agent-specific flags like `--resume <session-id>` that nono-dev
+    doesn't want to hard-code. Args are inserted between the system
+    prompt and the optional user prompt so the agent's own positional
+    argument (if any) still comes last.
 
     Returns the session ID parsed from nono's output.
     """
@@ -231,6 +239,9 @@ def run_detached(
         with open(system_prompt) as f:
             prompt_content = f.read()
         cmd.extend(["--system-prompt", prompt_content])
+
+    if agent_args:
+        cmd.extend(agent_args)
 
     if user_prompt:
         cmd.append(user_prompt)
@@ -345,3 +356,79 @@ def normalize_sandbox_paths(args):
         _norm(getattr(args, "extra_allows", None)),
         _norm(getattr(args, "extra_reads", None)),
     )
+
+
+# -- agent-args passthrough --------------------------------------------------
+#
+# Launchers spawn an inner coding agent (today `claude`, but the design
+# is intentionally agent-agnostic so the project can swap implementations
+# without a CLI rename). Users sometimes need to pass an agent-specific
+# flag, e.g. `claude --resume <session-id>` to pick up a prior chat.
+# Hard-coding every such flag into nono-dev is fragile, so we forward
+# anything after a literal `--` on the launcher's command line:
+#
+#   nd bare myname -- --resume abc123
+#   nd wt start mybranch -- --resume abc123
+#
+# Splitting happens BEFORE argparse parses (see `cli.py`), so launcher
+# flags (`--no-rollback`, `--allow`, ...) work naturally and the agent
+# args are never accidentally consumed as launcher flags. The split is
+# scoped to agent-launcher subcommands so commands like `vm exec --`
+# (which relies on argparse's standard `--` handling for its own
+# positional command) keep working unchanged.
+#
+# `_AGENT_LAUNCHER_COMMANDS` enumerates which subcommands opt in. A
+# nested-subcommand entry is encoded as "group/sub" (e.g. "wt/start").
+
+
+_AGENT_LAUNCHER_COMMANDS = frozenset({
+    "bare", "fix", "feature", "review", "triage",
+    "wt/start", "invariants/draft",
+})
+
+
+def split_agent_args(argv, launcher_commands=_AGENT_LAUNCHER_COMMANDS):
+    """Split argv at a standalone `--` for agent-launcher subcommands.
+
+    Returns `(front, agent_args)`. If `argv` does not target an agent
+    launcher or has no standalone `--`, returns `(argv, [])` so other
+    subcommands keep argparse's default `--` semantics.
+
+    Detects nested subcommands ("wt start", "invariants draft") by
+    examining the first two non-flag tokens.
+    """
+    if "--" not in argv:
+        return argv, []
+
+    # Find the first two non-flag positional tokens to identify the
+    # subcommand. `argv[0]` is the program name; skip it.
+    positionals = []
+    for tok in argv[1:]:
+        if tok == "--":
+            break
+        if not tok.startswith("-"):
+            positionals.append(tok)
+            if len(positionals) == 2:
+                break
+
+    if not positionals:
+        return argv, []
+
+    cmd = positionals[0]
+    nested = f"{cmd}/{positionals[1]}" if len(positionals) > 1 else None
+
+    if cmd in launcher_commands or (nested and nested in launcher_commands):
+        idx = argv.index("--")
+        return argv[:idx], argv[idx + 1:]
+
+    return argv, []
+
+
+def get_agent_args(args):
+    """Return the agent-args list attached to an argparse Namespace.
+
+    Safe to call on any namespace; returns `[]` when the attribute is
+    missing or empty. Launchers should pass this to
+    `run_detached(..., agent_args=...)`.
+    """
+    return list(getattr(args, "agent_args", None) or [])

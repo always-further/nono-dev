@@ -72,6 +72,7 @@ def run(args):
         system_prompt=prompt_path,
         rollback=rollback,
         workdir=abs_path,
+        agent_args=nono.get_agent_args(args),
     )
 
     print(style.success(f"Feature session started for '{args.branch_name}'"))

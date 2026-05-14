@@ -92,6 +92,7 @@ def run(args):
         user_prompt=args.issue_number,
         rollback=rollback,
         workdir=abs_path,
+        agent_args=nono.get_agent_args(args),
     )
 
     print(style.success(f"Fix session started for issue #{issue_number}") + style.muted(f" ({repo})"))

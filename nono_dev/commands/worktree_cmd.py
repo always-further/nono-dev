@@ -286,6 +286,7 @@ def run_start(args):
         system_prompt=prompt_path,
         rollback=rollback,
         workdir=abs_path,
+        agent_args=nono.get_agent_args(args),
     )
 
     print(style.success(f"Sandbox started in worktree '{branch}'"), file=sys.stderr)

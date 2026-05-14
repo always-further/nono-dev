@@ -672,6 +672,7 @@ def run_draft(args):
         system_prompt=prompt_path,
         rollback=rollback,
         workdir=workdir,
+        agent_args=nono.get_agent_args(args),
     )
 
     print(style.success("Invariants draft session started"))

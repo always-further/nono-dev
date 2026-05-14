@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from nono_dev import __version__, style
+from nono_dev import __version__, nono, style
 from nono_dev.commands import (
     attach,
     bare,
@@ -103,6 +103,9 @@ def _print_main_help():
     print()
 
     print(style.dim("  Run ") + style.info("nono-dev <command> --help") + style.dim(" for details"))
+    print(style.dim("  Tip: anything after ") + style.info("--") + style.dim(
+        " on a workflow command is forwarded to the inner agent"))
+    print(style.dim("       e.g. ") + style.info("nono-dev bare -- --resume <session-id>"))
     print()
 
 
@@ -209,7 +212,14 @@ def main():
     shell_init.add_parser(subparsers)
     dotfiles.add_parser(subparsers)
 
-    args = parser.parse_args()
+    # Forward anything after a standalone `--` to the inner coding agent
+    # for agent-launcher subcommands (bare/fix/feature/review/triage/
+    # wt start/invariants draft). Other subcommands keep argparse's
+    # default `--` handling so e.g. `nd vm exec -- ls -la` still works.
+    front, agent_args = nono.split_agent_args(sys.argv)
+
+    args = parser.parse_args(front[1:])
+    args.agent_args = agent_args
 
     if args.show_help or not args.command:
         _print_main_help()

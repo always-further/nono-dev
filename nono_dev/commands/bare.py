@@ -86,6 +86,7 @@ def run(args):
         system_prompt=prompt_path,
         rollback=rollback,
         workdir=workdir,
+        agent_args=nono.get_agent_args(args),
     )
 
     print(style.success("Bare session started"))

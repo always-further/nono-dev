@@ -58,6 +58,7 @@ def run(args):
         user_prompt=args.issue_number,
         rollback=rollback,
         workdir=os.getcwd(),
+        agent_args=nono.get_agent_args(args),
     )
 
     print(style.success(f"Triage session started for issue #{issue_number}") + style.muted(f" ({repo})"))

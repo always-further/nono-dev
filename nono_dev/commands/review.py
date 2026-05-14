@@ -58,6 +58,7 @@ def run(args):
         user_prompt=args.pr_number,
         rollback=rollback,
         workdir=os.getcwd(),
+        agent_args=nono.get_agent_args(args),
     )
 
     print(style.success(f"Review session started for PR #{pr_number}") + style.muted(f" ({repo})"))
