@@ -34,6 +34,45 @@ def _nono_cmd():
         return explicit
     return "nono"
 
+# Known agent CLI conventions. Any key can be overridden via [agent] config.
+#
+# `profile` is the nono SANDBOX profile (passed to `nono run --profile`),
+# not the agent binary. We default to "nono-dev" — our extended profile
+# that grants the paths sandboxed `nd` needs (~/.lima, ~/.config/gh,
+# ~/.ssh, gitconfig, plus the nono-dev source tree). Upstream's default
+# is "claude-code"; we override here so sandboxed `nd` keeps working.
+_AGENT_DEFAULTS = {
+    "claude": {
+        "profile": "nono-dev",
+        "auto_approve_flag": "--dangerously-skip-permissions",
+        "system_prompt_flag": "--system-prompt",
+    },
+    "codex": {
+        "profile": "nono-dev",
+        "auto_approve_flag": "--full-auto",
+        "system_prompt_flag": None,
+    },
+}
+
+_AGENT_FALLBACK = {
+    "profile": "nono-dev",
+    "auto_approve_flag": None,
+    "system_prompt_flag": None,
+}
+
+
+def get_agent_config(config):
+    """Resolve agent settings from project config with known-agent defaults."""
+    agent_cfg = config.get("agent", {})
+    binary = agent_cfg.get("binary", "claude")
+    known = _AGENT_DEFAULTS.get(binary, _AGENT_FALLBACK)
+    return {
+        "binary": binary,
+        "profile": agent_cfg.get("profile") or known["profile"],
+        "auto_approve_flag": agent_cfg.get("auto_approve_flag") or known.get("auto_approve_flag"),
+        "system_prompt_flag": agent_cfg.get("system_prompt_flag") or known.get("system_prompt_flag"),
+    }
+
 
 def check_installed():
     """Verify that the nono CLI is available."""
@@ -173,7 +212,7 @@ def _fetch_latest_version():
 def run_detached(
     name,
     *,
-    profile="nono-dev",
+    agent_config=None,
     allows=None,
     reads=None,
     allow_cwd=False,
@@ -194,6 +233,12 @@ def run_detached(
 
     Returns the session ID parsed from nono's output.
     """
+    agent = agent_config or _AGENT_DEFAULTS["claude"]
+    profile = agent["profile"]
+    binary = agent.get("binary", "claude")
+    auto_approve_flag = agent.get("auto_approve_flag")
+    system_prompt_flag = agent.get("system_prompt_flag")
+
     if profile == "nono-dev":
         profile_path = os.path.expanduser("~/.config/nono/profiles/nono-dev.json")
         if not os.path.isfile(profile_path):
@@ -233,17 +278,30 @@ def run_detached(
         cmd.extend(["--workdir", workdir])
 
     cmd.append("--")
-    cmd.extend(["claude", "--dangerously-skip-permissions"])
+    cmd.append(binary)
+    if auto_approve_flag:
+        cmd.append(auto_approve_flag)
 
-    if system_prompt:
-        with open(system_prompt) as f:
-            prompt_content = f.read()
-        cmd.extend(["--system-prompt", prompt_content])
-
+    # User-supplied agent args (`nd bare -- --resume <id>`) go before the
+    # prompt so they're parsed as options by the agent CLI, not as part
+    # of the positional user prompt.
     if agent_args:
         cmd.extend(agent_args)
 
-    if user_prompt:
+    prompt_content = None
+    if system_prompt:
+        with open(system_prompt) as f:
+            prompt_content = f.read()
+
+    if system_prompt_flag and prompt_content:
+        cmd.extend([system_prompt_flag, prompt_content])
+        if user_prompt:
+            cmd.append(user_prompt)
+    elif prompt_content:
+        # Agent has no --system-prompt flag; prepend to the user prompt.
+        merged_prompt = f"{prompt_content}\n\n{user_prompt}" if user_prompt else prompt_content
+        cmd.append(merged_prompt)
+    elif user_prompt:
         cmd.append(user_prompt)
 
     result = subprocess.run(cmd, capture_output=True, text=True)

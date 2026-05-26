@@ -96,8 +96,10 @@ nono-dev vm create                # Ubuntu VM (80 GiB disk by default)
 nono-dev vm create --shell-setup  # With zsh, starship, eza, bat, fd, ripgrep, direnv, fzf
 nono-dev vm create --disk 120GiB --cpus 8 --memory 16GiB  # Custom resources
 nono-dev vm connect               # Shell into the (only / default) VM
-nono-dev vm status                # List VMs
+nono-dev vm list                  # List VMs (including stopped)
+nono-dev vm status                # Show VM status
 nono-dev vm exec -- uname -a      # Run a command in the VM via SSH
+nono-dev vm shutdown              # Stop sync and shut down the VM
 nono-dev vm mount                 # Show what's currently synced
 nono-dev vm mount /path/to/repo   # Switch default VM's sync to that path
 nono-dev vm mount linux-gpu /path/to/repo  # Target a specific VM
@@ -134,10 +136,11 @@ nono-dev review <pr>               Review a GitHub PR
 nono-dev feature <branch>          Start a feature in a sandboxed worktree
 nono-dev bare [name]               Start a sandboxed Claude session in the current checkout
 
-nono-dev vm create|connect|exec|status|mount|destroy|recreate
+nono-dev vm create|connect|exec|list|status|shutdown|mount|destroy|recreate
 nono-dev sb list|attach|stop|prune|inspect
 nono-dev wt list|cd|start|cleanup
 nono-dev graph build|update|query|explain|path|status
+nono-dev invariants init|draft|validate
 nono-dev git commit [--no-sign]    AI-generated conventional commit (--no-sign skips GPG signing)
 
 nono-dev install [--force]         Install `nono-dev` / `nd` + sandbox profile

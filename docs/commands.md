@@ -520,6 +520,31 @@ List all Lima VMs and their current state.
 nono-dev vm status
 ```
 
+### `vm list`
+
+List all Lima VMs and their current state, including stopped VMs.
+
+```bash
+nono-dev vm list
+```
+
+This is equivalent to `vm status`.
+
+### `vm shutdown`
+
+Stop the mutagen sync for a VM, then shut down the VM.
+
+```bash
+nono-dev vm shutdown [name]
+nono-dev vm stop [name]
+nono-dev vm shutdown [name] --force
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `name` | `nono-dev` | VM name |
+| `--force` | | Force stop the VM |
+
 ### `vm mount`
 
 Show or switch the host directory synced into the VM's `~/project`. Two positionals — both optional — are disambiguated by shape:

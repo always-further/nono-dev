@@ -1,4 +1,4 @@
-"""Start a sandboxed Claude session in the current checkout."""
+"""Start a sandboxed agent session in the current checkout."""
 
 import os
 import re
@@ -80,6 +80,7 @@ def run(args):
     extra_allows, extra_reads = nono.normalize_sandbox_paths(args)
     session_id = nono.run_detached(
         session_name,
+        agent_config=nono.get_agent_config(config),
         allows=[project_root, git_dir] + extra_allows,
         reads=extra_reads,
         allow_cwd=True,

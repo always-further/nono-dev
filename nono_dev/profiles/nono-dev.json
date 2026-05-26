@@ -1,5 +1,5 @@
 {
-  "extends": "claude-code",
+  "extends": "claude",
   "meta": {
     "name": "nono-dev",
     "description": "Claude Code with nono-dev CLI, Lima VM access, and git/GitHub access"
@@ -8,14 +8,9 @@
     "read": [
       "$HOME/.lima",
       "$HOME/.config/gh",
-      "$HOME/.ssh",
       "$HOME/.local/share/nono-dev/graphs"
     ],
-    "allow": [
-      "$HOME/.local/bin"
-    ],
     "read_file": [
-      "$HOME/.gitconfig",
       "$HOME/.gitconfig.local"
     ]
   }

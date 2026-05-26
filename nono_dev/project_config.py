@@ -14,6 +14,7 @@ DEFAULTS = {
     "prompts": {},
     "graphs": {},
     "lima": {"home": None},
+    "agent": {"binary": "claude"},
 }
 
 # Default per-dev store root for Graphify outputs.
@@ -254,7 +255,7 @@ def get_worktree_dir(config):
     repo name is auto-appended to keep worktrees from different
     projects separated (e.g. /Volumes/SSD/worktrees/nono/).
     """
-    wt_dir = config["worktree"]["dir"]
+    wt_dir = os.path.expanduser(config["worktree"]["dir"])
     if os.path.isabs(wt_dir):
         if config.get("_worktree_source") == "user":
             repo = get_repo(config)

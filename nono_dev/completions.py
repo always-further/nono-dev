@@ -37,11 +37,14 @@ def get_completions(words):
             return _worktree_names()
 
     if cmd == "vm":
-        subs = ["create", "connect", "exec", "status", "mount", "destroy", "recreate"]
+        subs = [
+            "create", "connect", "exec", "list", "status",
+            "shutdown", "stop", "mount", "destroy", "recreate",
+        ]
         if len(words) <= 2:
             prefix = words[1] if len(words) == 2 else ""
             return [s for s in subs if s.startswith(prefix)]
-        if words[1] in ("connect", "destroy", "recreate", "mount", "exec"):
+        if words[1] in ("connect", "destroy", "recreate", "mount", "exec", "shutdown", "stop"):
             return _vm_names()
 
     if cmd == "git":

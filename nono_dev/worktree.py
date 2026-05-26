@@ -5,8 +5,8 @@ import subprocess
 import sys
 
 
-def add(branch, path, cwd=None):
-    """Create a new git worktree with a new branch.
+def add(branch, path, base="main", cwd=None):
+    """Create a new git worktree with a new branch off `base`.
 
     Returns the absolute path to the created worktree.
     """
@@ -14,7 +14,7 @@ def add(branch, path, cwd=None):
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
 
     result = subprocess.run(
-        ["git", "worktree", "add", "-b", branch, abs_path],
+        ["git", "worktree", "add", "-b", branch, abs_path, base],
         capture_output=True, text=True,
         cwd=cwd,
     )

@@ -26,10 +26,11 @@ Commands are grouped under `vm`, `sb`, `wt`, and `git`:
 
 ```
 nono-dev triage|fix|review|feature|bare   # Top-level workflow commands
-nono-dev vm create|connect|exec|status|mount|destroy|recreate
+nono-dev vm create|connect|exec|list|status|shutdown|mount|destroy|recreate
 nono-dev sb list|attach|stop|prune|inspect
 nono-dev wt list|cd|start|cleanup
 nono-dev graph build|update|query|explain|path|status
+nono-dev invariants init|draft|validate
 nono-dev git commit [--no-sign]   # --no-sign skips GPG signing (use inside sandboxes)
 nono-dev install|dotfiles|shell-init
 ```
@@ -83,7 +84,7 @@ Lima home is threaded as `lima_home=None` through all `lima.py` public functions
 6. Parse session ID from nono's stderr output
 7. User attaches later with `nono-dev sb attach`
 
-The `nono-dev` sandbox profile (`nono_dev/profiles/nono-dev.json`) extends `claude-code` and adds read grants for `~/.lima`, `~/.config/gh`, `~/.ssh`, plus read-file access to `~/.gitconfig(.local)`. That's enough for a sandboxed agent to run `nd vm exec` (SSH into Lima VMs) and `gh` without further per-session plumbing.
+The `nono-dev` sandbox profile (`nono_dev/profiles/nono-dev.json`) extends `claude` (the canonical name; `claude-code` is a legacy alias) and adds read grants for `~/.lima`, `~/.config/gh`, and `~/.local/share/nono-dev/graphs`, plus read-file access to `~/.gitconfig.local`. The parent profile's `git_config` group already covers `~/.gitconfig` and `~/.config/git/*`, and `user_tools` covers `~/.local/bin` (read-only). That's enough for a sandboxed agent to run `nd vm exec` (Lima SSH via `-F ~/.lima/<vm>/ssh.config`, which doesn't touch `~/.ssh/`) and `gh` (HTTPS via token in `~/.config/gh/`) without further per-session plumbing. `~/.ssh/` is deliberately NOT granted -- the profile follows principle of least privilege, and SSH-based git remotes are an opt-in per-session via `nd <cmd> --read ~/.ssh`.
 
 ### VM creation flow
 
