@@ -8,9 +8,6 @@
     "read": [
       "$HOME/.lima",
       "$HOME/.local/share/nono-dev/graphs"
-    ],
-    "read_file": [
-      "$HOME/.gitconfig.local"
     ]
   }
 }
