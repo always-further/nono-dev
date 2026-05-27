@@ -8,6 +8,10 @@
     "read": [
       "$HOME/.lima",
       "$HOME/.local/share/nono-dev/graphs"
+    ],
+    "read_file": [
+      "$HOME/.config/gh/config.yml",
+      "$HOME/.config/gh/hosts.yml"
     ]
   }
 }
