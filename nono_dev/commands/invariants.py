@@ -494,8 +494,8 @@ _TEMPLATE_YAML = """\
 # When you add an invariant
 # -------------------------
 # - If it's a *decision* (why we did it this way), link to a design doc.
-# - If it's a *rule* (don't do X), link to CLAUDE.md, an architecture doc,
-#   or an issue that motivated it.
+# - If it's a *rule* (don't do X), link to AGENTS.md / CLAUDE.md, an
+#   architecture doc, or an issue that motivated it.
 # - Keep statements concrete. "Handle errors well" is not an invariant;
 #   "Return Result; library code must not .unwrap() or .expect()" is.
 #
@@ -517,7 +517,7 @@ _TEMPLATE_YAML = """\
     Library code must not call .unwrap() or .expect() on values originating
     from user input, IO, or any fallible source. Propagate errors via
     Result; reserve panics for genuinely unreachable conditions.
-  source: CLAUDE.md#error-handling
+  source: AGENTS.md#error-handling
   severity: high
   added: {today}
   tags: [error-handling, robustness]
@@ -528,7 +528,7 @@ _TEMPLATE_YAML = """\
     User-supplied strings must never be interpolated into shell command
     lines. Always pass arguments as a list to the subprocess API, never
     via shell=True or string concatenation.
-  source: CLAUDE.md#security
+  source: AGENTS.md#security
   severity: high
   related: [example-no-unwrap-on-fallible-values]
 
@@ -542,7 +542,7 @@ _TEMPLATE_YAML = """\
     Avoid #[allow(dead_code)] or equivalent suppressions. If code is unused,
     either remove it or add tests that exercise it. Dead code accumulates
     silently and hides real gaps in coverage.
-  source: CLAUDE.md#coding-standards
+  source: AGENTS.md#coding-standards
   severity: low
 
 # ---------------------------------------------------------------------------

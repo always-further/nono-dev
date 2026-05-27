@@ -9,8 +9,8 @@ name: invariants-init
 description: >
   Bootstrap a real `invariants.yaml` for a graphify-enabled repository.
   Combines the knowledge graph (`nd graph` queries and explanations) with
-  codebase context (CLAUDE.md, architecture docs, lint config, existing
-  `// invariant` comments, test patterns) to draft a curated set of
+  codebase context (AGENTS.md / CLAUDE.md, architecture docs, lint config,
+  existing `// invariant` comments, test patterns) to draft a curated set of
   load-bearing rules grouped by subsystem, then validates the result.
 trigger: /draft-invariants
 ---
@@ -56,7 +56,7 @@ If `proj/invariants.yaml` already exists, ask the user whether to append, replac
 
 Read these in order; skip any that don't exist. Keep the file paths and heading anchors handy — they become `source:` citations later.
 
-1. **`CLAUDE.md`** — the most reliable source of project-wide rules. Many existing invariants in real repos cite `CLAUDE.md#anchor`. Read fully.
+1. **`AGENTS.md` / `CLAUDE.md`** — the most reliable source of project-wide rules (check for both; prefer `AGENTS.md` if present, fall back to `CLAUDE.md`). Many existing invariants cite these files as `source:`. Read fully.
 2. **`README.md`** — high-level "this project is a security tool" framing, often surfaces top-priority rules.
 3. **`docs/architecture/` or `proj/ARCHITECTURE*.md`** — design docs. Headings often phrase invariants directly ("the library vs CLI split is a load-bearing invariant"). Glob for `*.md` and read each.
 4. **Existing `// invariant <id>:` comments** — the project may already mark rules in code:
@@ -212,7 +212,7 @@ If `docs/invariants.yaml` already existed when this skill ran, also surface a di
 ## Edge cases
 
 - **No graph available**: state this up front; rely entirely on Steps 2 (docs / lint config / `// invariant` comments). Output should still be useful but will skip the architectural-pillar entries that the graph reveals.
-- **No CLAUDE.md, no docs/, no proj/, no lint config**: tell the user the repo is missing the inputs this skill consumes. Suggest they hand-write a starter via `nd invariants init` and add design docs first.
+- **No AGENTS.md or CLAUDE.md, no docs/, no proj/, no lint config**: tell the user the repo is missing the inputs this skill consumes. Suggest they hand-write a starter via `nd invariants init` and add design docs first.
 - **Cross-repo**: if the cwd's git remote points at a different repo than the graph was built for, abort with the same advice as repo-triage: rerun from a checkout that the graph describes.
 - **`statement` exceeds 1500 chars**: split into two entries with related ids.
 - **You can't find a `source:` citation**: do **not** invent one. Either write the rule into `proj/INVARIANTS-NOTES.md` first and cite that, or drop the entry. A made-up citation is worse than a missing entry — it survives review and silently misleads everyone afterwards.
