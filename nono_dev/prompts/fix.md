@@ -106,7 +106,7 @@ Policy groups live under the top-level `"groups"` key:
 }
 ```
 
-Built-in profiles (e.g. `claude-code`, `codex`) reference groups by name under `"security": { "groups": [...] }`. When fixing policy bugs, check whether the affected path should be added to an existing group or warrants a new one.
+Built-in profiles (e.g. `claude`, `codex`) reference groups by name under `"security": { "groups": [...] }`. When fixing policy bugs, check whether the affected path should be added to an existing group or warrants a new one.
 
 ## Diagnostic Commands
 
