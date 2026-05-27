@@ -10,9 +10,7 @@
       "$HOME/.local/share/nono-dev/graphs"
     ],
     "read_file": [
-      "$HOME/.gitconfig.local",
-      "$HOME/.config/gh/hosts.yml",
-      "$HOME/.config/gh/config.yml"
+      "$HOME/.gitconfig.local"
     ]
   }
 }
