@@ -39,23 +39,34 @@ def _nono_cmd():
 # `profile` is the nono SANDBOX profile (passed to `nono run --profile`),
 # not the agent binary. We default to "nono-dev" — our extended profile
 # that grants the paths sandboxed `nd` needs (~/.lima, ~/.config/gh,
-# ~/.ssh, gitconfig, plus the nono-dev source tree). Upstream's default
+# gitconfig, plus the nono-dev source tree). Upstream's default
 # is "claude-code"; we override here so sandboxed `nd` keeps working.
+#
+# `subcommand` is an optional first arg between the binary and the
+# prompt/flags. Used for agents whose non-interactive mode is gated
+# behind a subcommand (e.g. codex 0.133+ requires `codex exec PROMPT`
+# rather than `codex PROMPT`).
 _AGENT_DEFAULTS = {
     "claude": {
         "profile": "nono-dev",
+        "subcommand": None,
         "auto_approve_flag": "--dangerously-skip-permissions",
         "system_prompt_flag": "--system-prompt",
     },
     "codex": {
         "profile": "nono-dev",
-        "auto_approve_flag": "--full-auto",
+        "subcommand": "exec",
+        # Codex 0.133+ replaced --full-auto with the --sandbox flag for
+        # permission control. Since codex runs inside a nono sandbox
+        # already, allow it the broadest internal posture.
+        "auto_approve_flag": None,
         "system_prompt_flag": None,
     },
 }
 
 _AGENT_FALLBACK = {
     "profile": "nono-dev",
+    "subcommand": None,
     "auto_approve_flag": None,
     "system_prompt_flag": None,
 }
@@ -75,6 +86,7 @@ def get_agent_config(config, override_binary=None):
     return {
         "binary": binary,
         "profile": agent_cfg.get("profile") or known["profile"],
+        "subcommand": agent_cfg.get("subcommand") or known.get("subcommand"),
         "auto_approve_flag": agent_cfg.get("auto_approve_flag") or known.get("auto_approve_flag"),
         "system_prompt_flag": agent_cfg.get("system_prompt_flag") or known.get("system_prompt_flag"),
     }
@@ -284,6 +296,7 @@ def run_detached(
     agent = agent_config or _AGENT_DEFAULTS["claude"]
     profile = agent["profile"]
     binary = agent.get("binary", "claude")
+    subcommand = agent.get("subcommand")
     auto_approve_flag = agent.get("auto_approve_flag")
     system_prompt_flag = agent.get("system_prompt_flag")
 
@@ -327,6 +340,8 @@ def run_detached(
 
     cmd.append("--")
     cmd.append(binary)
+    if subcommand:
+        cmd.append(subcommand)
     if auto_approve_flag:
         cmd.append(auto_approve_flag)
 
