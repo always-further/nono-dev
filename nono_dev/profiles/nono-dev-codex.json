@@ -1,0 +1,13 @@
+{
+  "extends": "codex",
+  "meta": {
+    "name": "nono-dev-codex",
+    "description": "Codex CLI with nono-dev CLI, Lima VM access, and graph access"
+  },
+  "filesystem": {
+    "read": [
+      "$HOME/.lima",
+      "$HOME/.local/share/nono-dev/graphs"
+    ]
+  }
+}

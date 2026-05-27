@@ -84,7 +84,12 @@ Lima home is threaded as `lima_home=None` through all `lima.py` public functions
 6. Parse session ID from nono's stderr output
 7. User attaches later with `nono-dev sb attach`
 
-The `nono-dev` sandbox profile (`nono_dev/profiles/nono-dev.json`) extends `claude` (the canonical name; `claude-code` is a legacy alias) and adds read grants for `~/.lima` and `~/.local/share/nono-dev/graphs`, plus read-file access to `~/.gitconfig.local`. The parent profile's `git_config` group already covers `~/.gitconfig` and `~/.config/git/*`, and `user_tools` covers `~/.local/bin` (read-only). That's enough for a sandboxed agent to run `nd vm exec` (Lima SSH via `-F ~/.lima/<vm>/ssh.config`, which doesn't touch `~/.ssh/`) and `gh` (via `GH_TOKEN` env var — no filesystem grant needed). `~/.ssh/` is deliberately NOT granted -- the profile follows principle of least privilege, and SSH-based git remotes are an opt-in per-session via `nd <cmd> --read ~/.ssh`. `~/.config/gh` is deliberately NOT granted -- `GH_TOKEN` must be set in the user's shell environment (e.g. `~/.zshrc`) for `gh` commands to work inside sandboxed sessions.
+There are two sandbox profiles in `nono_dev/profiles/`, one per supported agent:
+
+- `nono-dev-claude.json` — extends the `claude` pack; used by default and with `--agent claude`
+- `nono-dev-codex.json` — extends the `codex` pack; used with `--agent codex`
+
+Both add the same two read grants: `~/.lima` (Lima VM SSH config) and `~/.local/share/nono-dev/graphs` (knowledge graph). Everything else comes from the inherited pack. The `git_config` group covers `~/.gitconfig` and `~/.config/git/config`. `user_tools` covers `~/.local/bin` (read-only). `~/.ssh/` is deliberately NOT granted — Lima uses its own keys in `~/.lima`; SSH-based git remotes are an opt-in per-session via `nd <cmd> --read ~/.ssh`. `~/.config/gh` is deliberately NOT granted — `GH_TOKEN` must be set in the user's shell environment (e.g. `~/.zshrc`) for `gh` commands to work. The `nono-dev-codex` profile inherits `~/.codex` r+w from the `codex_macos` group in the codex pack, so codex sessions persist state normally without `--ephemeral`. `nd install` copies all `profiles/*.json` files to `~/.config/nono/profiles/`.
 
 ### VM creation flow
 

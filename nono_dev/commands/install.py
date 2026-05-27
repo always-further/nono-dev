@@ -66,20 +66,29 @@ def run(args):
     else:
         print(f"  {style.status('ok')}  nono-dev installed to ~/.local/bin/nono-dev")
 
-    # Install nono-dev sandbox profile
-    profile_src = os.path.join(
+    # Install all nono-dev sandbox profiles (nono-dev-claude, nono-dev-codex, etc.)
+    profiles_src_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "profiles", "nono-dev.json",
+        "profiles",
     )
     profile_dst_dir = os.path.expanduser("~/.config/nono/profiles")
-    profile_dst = os.path.join(profile_dst_dir, "nono-dev.json")
+    os.makedirs(profile_dst_dir, exist_ok=True)
 
-    if os.path.isfile(profile_src):
-        os.makedirs(profile_dst_dir, exist_ok=True)
-        shutil.copy2(profile_src, profile_dst)
-        print(f"  {style.status('ok')}  nono-dev profile installed to {profile_dst}")
+    installed = []
+    for fname in sorted(os.listdir(profiles_src_dir)):
+        if not fname.endswith(".json"):
+            continue
+        src = os.path.join(profiles_src_dir, fname)
+        dst = os.path.join(profile_dst_dir, fname)
+        shutil.copy2(src, dst)
+        installed.append(fname)
+
+    if installed:
+        for fname in installed:
+            dst = os.path.join(profile_dst_dir, fname)
+            print(f"  {style.status('ok')}  profile installed → {dst}")
     else:
-        print(f"  {style.status('warn')}  nono-dev profile not found in package")
+        print(f"  {style.status('warn')}  no profiles found in package")
 
     # Verify it's on PATH
     if shutil.which("nono-dev"):

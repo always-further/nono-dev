@@ -37,10 +37,12 @@ def _nono_cmd():
 # Known agent CLI conventions. Any key can be overridden via [agent] config.
 #
 # `profile` is the nono SANDBOX profile (passed to `nono run --profile`),
-# not the agent binary. We default to "nono-dev" — our extended profile
-# that grants the paths sandboxed `nd` needs (~/.lima, ~/.config/gh,
-# gitconfig, plus the nono-dev source tree). Upstream's default
-# is "claude-code"; we override here so sandboxed `nd` keeps working.
+# not the agent binary. Each agent has its own profile that extends the
+# matching pack (nono-dev-claude extends claude, nono-dev-codex extends
+# codex). This ensures each agent gets the grants its pack defines (e.g.
+# ~/.codex r+w for codex) plus the shared nono-dev overlays (~/.lima,
+# graphs dir). Upstream's default is "claude-code"; we override here so
+# sandboxed `nd` keeps working.
 #
 # `subcommand` is an optional first arg between the binary and the
 # prompt/flags. Used for agents whose non-interactive mode is gated
@@ -48,29 +50,28 @@ def _nono_cmd():
 # rather than `codex PROMPT`).
 _AGENT_DEFAULTS = {
     "claude": {
-        "profile": "nono-dev",
+        "profile": "nono-dev-claude",
         "subcommand": None,
         "auto_approve_flag": "--dangerously-skip-permissions",
         "extra_flags": [],
         "system_prompt_flag": "--system-prompt",
     },
     "codex": {
-        "profile": "nono-dev",
+        "profile": "nono-dev-codex",
         "subcommand": "exec",
         # Codex's "I am inside an external sandbox" flag — skips approval
         # prompts (which can't be answered without a TTY) and disables
         # codex's internal sandboxing (nono is the real sandbox).
         "auto_approve_flag": "--dangerously-bypass-approvals-and-sandbox",
-        # --ephemeral: don't persist session state to ~/.codex (not granted
-        #              by the nono-dev profile). Trade-off: codex `resume`
-        #              won't work; sessions are one-shot.
-        "extra_flags": ["--ephemeral"],
+        # nono-dev-codex extends the codex pack which grants ~/.codex r+w
+        # via the codex_macos group, so --ephemeral is not needed.
+        "extra_flags": [],
         "system_prompt_flag": None,
     },
 }
 
 _AGENT_FALLBACK = {
-    "profile": "nono-dev",
+    "profile": "nono-dev-claude",
     "subcommand": None,
     "auto_approve_flag": None,
     "extra_flags": [],

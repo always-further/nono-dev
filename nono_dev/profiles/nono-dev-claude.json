@@ -1,0 +1,13 @@
+{
+  "extends": "claude",
+  "meta": {
+    "name": "nono-dev-claude",
+    "description": "Claude Code with nono-dev CLI, Lima VM access, and graph access"
+  },
+  "filesystem": {
+    "read": [
+      "$HOME/.lima",
+      "$HOME/.local/share/nono-dev/graphs"
+    ]
+  }
+}
