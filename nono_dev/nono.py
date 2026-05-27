@@ -51,15 +51,20 @@ _AGENT_DEFAULTS = {
         "profile": "nono-dev",
         "subcommand": None,
         "auto_approve_flag": "--dangerously-skip-permissions",
+        "extra_flags": [],
         "system_prompt_flag": "--system-prompt",
     },
     "codex": {
         "profile": "nono-dev",
         "subcommand": "exec",
-        # Codex 0.133+ replaced --full-auto with the --sandbox flag for
-        # permission control. Since codex runs inside a nono sandbox
-        # already, allow it the broadest internal posture.
-        "auto_approve_flag": None,
+        # Codex's "I am inside an external sandbox" flag — skips approval
+        # prompts (which can't be answered without a TTY) and disables
+        # codex's internal sandboxing (nono is the real sandbox).
+        "auto_approve_flag": "--dangerously-bypass-approvals-and-sandbox",
+        # --ephemeral: don't persist session state to ~/.codex (not granted
+        #              by the nono-dev profile). Trade-off: codex `resume`
+        #              won't work; sessions are one-shot.
+        "extra_flags": ["--ephemeral"],
         "system_prompt_flag": None,
     },
 }
@@ -68,6 +73,7 @@ _AGENT_FALLBACK = {
     "profile": "nono-dev",
     "subcommand": None,
     "auto_approve_flag": None,
+    "extra_flags": [],
     "system_prompt_flag": None,
 }
 
@@ -88,6 +94,7 @@ def get_agent_config(config, override_binary=None):
         "profile": agent_cfg.get("profile") or known["profile"],
         "subcommand": agent_cfg.get("subcommand") or known.get("subcommand"),
         "auto_approve_flag": agent_cfg.get("auto_approve_flag") or known.get("auto_approve_flag"),
+        "extra_flags": agent_cfg.get("extra_flags") or known.get("extra_flags") or [],
         "system_prompt_flag": agent_cfg.get("system_prompt_flag") or known.get("system_prompt_flag"),
     }
 
@@ -298,6 +305,7 @@ def run_detached(
     binary = agent.get("binary", "claude")
     subcommand = agent.get("subcommand")
     auto_approve_flag = agent.get("auto_approve_flag")
+    extra_flags = agent.get("extra_flags") or []
     system_prompt_flag = agent.get("system_prompt_flag")
 
     if profile == "nono-dev":
@@ -344,6 +352,8 @@ def run_detached(
         cmd.append(subcommand)
     if auto_approve_flag:
         cmd.append(auto_approve_flag)
+    if extra_flags:
+        cmd.extend(extra_flags)
 
     # User-supplied agent args (`nd bare -- --resume <id>`) go before the
     # prompt so they're parsed as options by the agent CLI, not as part
