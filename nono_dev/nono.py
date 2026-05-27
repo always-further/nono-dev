@@ -58,14 +58,19 @@ _AGENT_DEFAULTS = {
     },
     "codex": {
         "profile": "nono-dev-codex",
-        "subcommand": "exec",
-        # Codex's "I am inside an external sandbox" flag — skips approval
-        # prompts (which can't be answered without a TTY) and disables
-        # codex's internal sandboxing (nono is the real sandbox).
+        # No subcommand: interactive TUI mode. `codex exec` is one-shot
+        # and exits immediately; we want the session to stay open for
+        # the user to attach to.
+        "subcommand": None,
+        # Skip codex's internal approval prompts and its own sandboxing —
+        # nono is the real sandbox. Intended for exactly this use case.
         "auto_approve_flag": "--dangerously-bypass-approvals-and-sandbox",
         # nono-dev-codex extends the codex pack which grants ~/.codex r+w
         # via the codex_macos group, so --ephemeral is not needed.
         "extra_flags": [],
+        # Codex has no --system-prompt flag. The system prompt content is
+        # prepended to the initial user prompt and passed as a positional
+        # arg, giving codex the workflow context as its opening message.
         "system_prompt_flag": None,
     },
 }
