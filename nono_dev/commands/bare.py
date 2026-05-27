@@ -19,6 +19,7 @@ def add_parser(subparsers):
         help="Disable rollback snapshots for this session",
     )
     nono.add_sandbox_pass_through_args(parser)
+    nono.add_agent_select_args(parser)
     parser.set_defaults(func=run)
 
 
@@ -65,7 +66,7 @@ def run(args):
 
     workdir = os.getcwd()
     git_dir = os.path.join(project_root, ".git")
-    session_name = _session_name(args.name, config)
+    session_name = _session_name(args.name, config) + nono.agent_name_suffix(config, args.agent)
 
     sessions = nono.ps_json(include_all=False)
     for session in sessions:
@@ -80,7 +81,7 @@ def run(args):
     extra_allows, extra_reads = nono.normalize_sandbox_paths(args)
     session_id = nono.run_detached(
         session_name,
-        agent_config=nono.get_agent_config(config),
+        agent_config=nono.get_agent_config(config, override_binary=args.agent),
         allows=[project_root, git_dir] + extra_allows,
         reads=extra_reads,
         allow_cwd=True,

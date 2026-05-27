@@ -49,6 +49,7 @@ def add_parser(subparsers):
         "--no-rollback", action="store_true",
         help="Disable rollback snapshots for this session",
     )
+    nono.add_agent_select_args(start_parser)
     start_parser.set_defaults(func=run_start)
 
     # wt cleanup
@@ -254,6 +255,7 @@ def run_start(args):
     # including cross-repo fix branches like `nono-py-issue-42`.
     fix_session = project_config.branch_to_fix_session(branch)
     session_name = fix_session if fix_session else f"feat-{branch}"
+    session_name += nono.agent_name_suffix(config, args.agent)
 
     # Check if a session is already running for this worktree
     for s in sessions:
@@ -280,6 +282,7 @@ def run_start(args):
     git_dir = os.path.join(repo_root, ".git")
     session_id = nono.run_detached(
         session_name,
+        agent_config=nono.get_agent_config(config, override_binary=args.agent),
         allows=[abs_path, git_dir],
         reads=[repo_root],
         allow_cwd=True,

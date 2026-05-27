@@ -71,6 +71,7 @@ def add_parser(subparsers):
         help="Disable rollback snapshots for this session",
     )
     nono.add_sandbox_pass_through_args(draft_parser)
+    nono.add_agent_select_args(draft_parser)
     draft_parser.set_defaults(func=run_draft)
 
     # validate
@@ -646,7 +647,7 @@ def run_draft(args):
 
     workdir = os.getcwd()
     git_dir = os.path.join(project_root, ".git")
-    session_name = _draft_session_name(config)
+    session_name = _draft_session_name(config) + nono.agent_name_suffix(config, args.agent)
 
     # Refuse to launch a duplicate; surface attach instructions for the
     # existing session instead.
@@ -663,6 +664,7 @@ def run_draft(args):
     extra_allows, extra_reads = nono.normalize_sandbox_paths(args)
     session_id = nono.run_detached(
         session_name,
+        agent_config=nono.get_agent_config(config, override_binary=args.agent),
         # The skill writes to proj/invariants.yaml under the project root,
         # so project_root needs write access; .git for any commits the
         # agent decides to make if the user asks.

@@ -61,10 +61,16 @@ _AGENT_FALLBACK = {
 }
 
 
-def get_agent_config(config):
-    """Resolve agent settings from project config with known-agent defaults."""
+def get_agent_config(config, override_binary=None):
+    """Resolve agent settings from project config with known-agent defaults.
+
+    `override_binary` (typically `args.agent` from a launcher's `--agent`
+    flag) takes precedence over `[agent].binary` in nono-dev.toml. This
+    is how the per-session override (e.g. `nd review 42 --agent codex`
+    in an otherwise claude-configured repo) gets applied.
+    """
     agent_cfg = config.get("agent", {})
-    binary = agent_cfg.get("binary", "claude")
+    binary = override_binary or agent_cfg.get("binary", "claude")
     known = _AGENT_DEFAULTS.get(binary, _AGENT_FALLBACK)
     return {
         "binary": binary,
@@ -72,6 +78,48 @@ def get_agent_config(config):
         "auto_approve_flag": agent_cfg.get("auto_approve_flag") or known.get("auto_approve_flag"),
         "system_prompt_flag": agent_cfg.get("system_prompt_flag") or known.get("system_prompt_flag"),
     }
+
+
+def add_agent_select_args(parser):
+    """Register `--agent NAME` on a launcher to override which CLI is invoked.
+
+    Lets a single repo run cross-agent workflows without editing
+    `nono-dev.toml`: e.g. a repo defaulting to claude can use
+    `nd review 42 --agent codex` to have codex review a PR claude
+    worked on. Falls back to `[agent].binary` config when omitted,
+    then to "claude". Unknown agent names fall through to the
+    minimal fallback profile (no auto-approve / no system-prompt
+    flag) and will fail at exec if the binary isn't installed --
+    that's intentional, so new agents can be tried without code
+    changes.
+    """
+    parser.add_argument(
+        "--agent", default=None, metavar="NAME",
+        help="Override the inner agent CLI for this session "
+             "(e.g. claude, codex). Defaults to [agent].binary "
+             "in nono-dev.toml, then 'claude'.",
+    )
+
+
+def agent_name_suffix(config, override_binary):
+    """Return `-<agent>` suffix when override differs from the configured
+    default; `''` otherwise.
+
+    Lets cross-agent sessions on the same target coexist: a
+    `nd review 42` session and a `nd review 42 --agent codex`
+    session get different names (`review-42` vs `review-42-codex`)
+    and don't collide in the duplicate-session check.
+
+    Returns `''` when no override is set, or when the override
+    matches the configured default (a no-op override shouldn't
+    rename anything).
+    """
+    if not override_binary:
+        return ""
+    configured = config.get("agent", {}).get("binary", "claude")
+    if override_binary == configured:
+        return ""
+    return f"-{override_binary}"
 
 
 def check_installed():

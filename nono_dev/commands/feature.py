@@ -22,6 +22,7 @@ def add_parser(subparsers):
         help="Branch or commit to base the worktree off (default: main)",
     )
     nono.add_sandbox_pass_through_args(parser)
+    nono.add_agent_select_args(parser)
     parser.set_defaults(func=run)
 
 
@@ -42,7 +43,7 @@ def run(args):
     wt_dir = project_config.get_worktree_dir(config)
 
     wt_path = os.path.join(wt_dir, args.branch_name)
-    session_name = f"feat-{args.branch_name}"
+    session_name = f"feat-{args.branch_name}" + nono.agent_name_suffix(config, args.agent)
 
     sessions = nono.ps_json(include_all=False)
     for s in sessions:
@@ -70,7 +71,7 @@ def run(args):
     extra_allows, extra_reads = nono.normalize_sandbox_paths(args)
     session_id = nono.run_detached(
         session_name,
-        agent_config=nono.get_agent_config(config),
+        agent_config=nono.get_agent_config(config, override_binary=args.agent),
         allows=[abs_path, git_dir] + extra_allows,
         reads=[project_root] + extra_reads,
         allow_cwd=True,
