@@ -1,6 +1,6 @@
 [project]
 name = "nono-dev"
-version = "0.8.2"
+version = "0.9.0"
 description = "Development environment manager for the nono project"
 requires-python = ">=3.11"
 dependencies = []
