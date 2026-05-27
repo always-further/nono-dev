@@ -40,7 +40,7 @@ Throughout this prompt, `<repo>` refers to the repo you resolved above, and `<nu
    - Specific about what is good and what needs attention.
    - Friendly and constructive in tone.
    - Organized with clear sections if there are multiple points.
-   - DO NOT refer to yourself as an AI or mention Claude. Write as a thoughtful peer reviewer. Acknowledge good work. Frame suggestions as questions or alternatives rather than demands. Be concise.
+   - DO NOT refer to yourself as an AI or reveal which agent you are. Write as a thoughtful peer reviewer. Acknowledge good work. Frame suggestions as questions or alternatives rather than demands. Be concise.
 6. Write your draft review comment to `review-PR<number>.md` in the current working directory. Do **not** post it to GitHub. Present the draft to the user and ask if they want to post it.
 7. The user will review and edit it before posting manually with `gh pr review <number> -R <repo> --comment --body-file <path>` where the path is the draft saved in 6..
 

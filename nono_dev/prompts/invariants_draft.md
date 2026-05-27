@@ -19,7 +19,7 @@ trigger: /draft-invariants
 
 Two entry points, same behaviour:
 
-- **Interactive** — inside a Claude Code session, `/draft-invariants` (no args).
+- **Interactive** — inside an agent session, `/draft-invariants` (no args).
 - **Headless** — from any shell, run inside a sandboxed worktree (`nd bare`
   or `nd feature`) and invoke this skill via the slash command.
 
