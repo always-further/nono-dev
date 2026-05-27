@@ -1014,12 +1014,15 @@ def _detect_github_repo(repo_path):
     return None
 
 
+class GhCommandError(Exception):
+    """Raised when a gh CLI command fails."""
+
+
 def _gh_json(cmd):
     """Run a gh command that returns JSON, return parsed list."""
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(style.error(f"gh failed: {result.stderr.strip()}"), file=sys.stderr)
-        sys.exit(1)
+        raise GhCommandError(result.stderr.strip())
     return json.loads(result.stdout)
 
 
@@ -1208,8 +1211,17 @@ def run_ingest(args):
 
     # Fetch issues
     print(f"  {style.label('issues:')}    fetching...", end="", flush=True)
-    issues = _fetch_issues(github_repo, limit=args.limit, since=since)
-    print(f"\r  {style.label('issues:')}    {len(issues)} {'updated' if since else 'fetched'}")
+    try:
+        issues = _fetch_issues(github_repo, limit=args.limit, since=since)
+        print(f"\r  {style.label('issues:')}    {len(issues)} {'updated' if since else 'fetched'}")
+    except GhCommandError as exc:
+        msg = str(exc)
+        if "disabled" in msg.lower():
+            print(f"\r  {style.label('issues:')}    {style.muted('disabled — skipping')}")
+            issues = []
+        else:
+            print(style.error(f"gh failed: {msg}"), file=sys.stderr)
+            sys.exit(1)
 
     for issue in issues:
         md = _format_issue_md(issue)
@@ -1219,8 +1231,17 @@ def run_ingest(args):
 
     # Fetch PRs
     print(f"  {style.label('PRs:')}       fetching...", end="", flush=True)
-    prs = _fetch_prs(github_repo, limit=args.limit, since=since)
-    print(f"\r  {style.label('PRs:')}       {len(prs)} {'updated' if since else 'fetched'}")
+    try:
+        prs = _fetch_prs(github_repo, limit=args.limit, since=since)
+        print(f"\r  {style.label('PRs:')}       {len(prs)} {'updated' if since else 'fetched'}")
+    except GhCommandError as exc:
+        msg = str(exc)
+        if "disabled" in msg.lower():
+            print(f"\r  {style.label('PRs:')}       {style.muted('disabled — skipping')}")
+            prs = []
+        else:
+            print(style.error(f"gh failed: {msg}"), file=sys.stderr)
+            sys.exit(1)
 
     pr_file_count = 0
     if not args.no_files and prs:
